@@ -17,5 +17,7 @@
     "sourceMap": true
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["dist", "node_modules"]
+  // Tests are run from source by Vitest and must not be compiled into
+  // dist, or they would be shipped in the container and picked up twice.
+  "exclude": ["dist", "node_modules", "src/**/*.test.ts"]
 }
