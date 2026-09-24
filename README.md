@@ -64,7 +64,7 @@ returns 404, never 403.
 | R-02 | `every` below 1 or above 365 is rejected with 422 on `every`. | done |
 | R-03 | `weekly` with an empty `byWeekday` is rejected with 422. Duplicate weekdays are de-duplicated, not rejected. | done |
 | R-04 | `monthly_day` with `dayOfMonth` 29–31 skips months that are too short. February never produces a 31st. No clamping to the last day. | done |
-| R-05 | `monthly_nth` accepts 1–4 and -1 only. A month without a fifth weekday is skipped. | validation done, skipping stage 2 |
+| R-05 | `monthly_nth` accepts 1–4 and -1 only. A month without a fifth weekday is skipped. | done |
 | R-06 | Spring forward: a local time that does not exist moves forward by the length of the gap (02:30 becomes 03:30 where the clock jumps 02:00 → 03:00). | done |
 | R-07 | Fall back: a local time that happens twice uses the first, earlier-offset occurrence. | done |
 | R-08 | Two enabled alarms in one folder may not share a UTC instant within the next 90 days. Colliding creates and updates return 409 with the conflicting alarm's id and the instant. Disabled alarms are ignored. | done |
