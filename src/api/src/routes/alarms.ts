@@ -10,7 +10,7 @@ import { conflict, notFound } from '../errors.js';
 import { toAlarm, type AlarmRow } from '../domain/mappers.js';
 import { findCollision, specFromRow } from '../domain/conflicts.js';
 import { validateSchedule } from '../domain/validation.js';
-import { occurrencesFor, nextOccurrence } from '../recurrence/engine.js';
+import { nextOccurrence } from '../recurrence/engine.js';
 import { normaliseRule } from '../schemas/rule.js';
 import {
   AlarmListSchema,

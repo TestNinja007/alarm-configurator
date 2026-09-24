@@ -30,7 +30,11 @@ export function ConfirmDialog({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="dialog-overlay" />
-        <Dialog.Content className="dialog-content" data-testid={testId}>
+        {/*
+          Radix traps focus and marks the rest of the page aria-hidden, but does
+          not set aria-modal itself, so it is set here explicitly.
+        */}
+        <Dialog.Content className="dialog-content" aria-modal="true" data-testid={testId}>
           <Dialog.Title className="dialog-title" data-testid={`${testId}-title`}>
             {title}
           </Dialog.Title>

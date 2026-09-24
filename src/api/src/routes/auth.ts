@@ -11,7 +11,7 @@ import {
 } from '../auth/sessions.js';
 import { queryOne } from '../db/pool.js';
 import { AppError, unauthenticated } from '../errors.js';
-import { LoginBodySchema, SessionSchema, UserSchema, type LoginBody } from '../schemas/auth.js';
+import { LoginBodySchema, SessionSchema, type LoginBody } from '../schemas/auth.js';
 import { errorResponses } from '../schemas/common.js';
 import { consumeLoginAttempt, clearLoginAttempts } from '../auth/rateLimit.js';
 
