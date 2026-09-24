@@ -1,0 +1,36 @@
+services:
+  db:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: alarm_app
+      POSTGRES_PASSWORD: alarm_app
+      POSTGRES_DB: alarm_configurator
+    ports:
+      # Exposed so a test framework on the host can query the database directly.
+      - "5433:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alarm_app -d alarm_configurator"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://alarm_app:alarm_app@db:5432/alarm_configurator
+      PORT: 8080
+      TEST_SUPPORT: "1"
+      SEED_PROFILE: demo
+      SEED_ANCHOR: "2026-06-15T18:00:00Z"
+      LIST_DELAY_MS: "600"
+      SESSION_SECRET: docker-compose-development-session-secret
+    ports:
+      - "8080:8080"
+
+volumes:
+  db-data:
