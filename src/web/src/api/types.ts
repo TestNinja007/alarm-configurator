@@ -73,3 +73,49 @@ export function describeRule(rule: Rule): string {
       return `Every ${rule.every} ${rule.every === 1 ? rule.unit.replace(/s$/, '') : rule.unit}`;
   }
 }
+
+export interface Occurrence {
+  utc: string;
+  local: string;
+}
+
+/** The schedule half of an alarm, which is all POST /alarms/preview needs. */
+export interface PreviewRequest {
+  timeOfDay: string;
+  timezone?: string;
+  startDate: string;
+  endDate?: string | null;
+  endAfterOccurrences?: number | null;
+  rule: Rule;
+  from?: string;
+}
+
+export interface ConflictPair {
+  alarmAId: string;
+  alarmAName: string;
+  alarmBId: string;
+  alarmBName: string;
+  firstUtc: string;
+  collisionCount: number;
+}
+
+export interface FolderSummary {
+  alarmCount: number;
+  enabledCount: number;
+  occurrencesNext7Days: number;
+  nextOccurrence: Occurrence | null;
+}
+
+export interface AlarmDraft {
+  step: number;
+  payload: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UiState {
+  folderId: string | null;
+  sort: AlarmSort | null;
+  enabled: boolean | null;
+  updatedAt: string | null;
+}

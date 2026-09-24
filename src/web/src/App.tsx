@@ -5,6 +5,7 @@ import type { Session } from './api/types';
 import { AlarmsPage } from './routes/AlarmsPage';
 import { FoldersPage } from './routes/FoldersPage';
 import { LoginPage } from './routes/LoginPage';
+import { WizardPage } from './routes/WizardPage';
 
 function useSession() {
   return useQuery({
@@ -70,6 +71,8 @@ export function App() {
         <Route path="/login" element={<Navigate to="/folders" replace />} />
         <Route path="/folders" element={<FoldersPage />} />
         <Route path="/folders/:folderId" element={<AlarmsPage />} />
+        <Route path="/folders/:folderId/alarms/new" element={<WizardPage mode="create" />} />
+        <Route path="/alarms/:alarmId/edit" element={<WizardPage mode="edit" />} />
         <Route path="*" element={<Navigate to="/folders" replace />} />
       </Routes>
     </div>

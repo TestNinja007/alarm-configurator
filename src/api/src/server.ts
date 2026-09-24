@@ -10,6 +10,8 @@ import { alarmRoutes } from './routes/alarms.js';
 import { authRoutes } from './routes/auth.js';
 import { folderRoutes } from './routes/folders.js';
 import { healthRoutes } from './routes/health.js';
+import { meRoutes } from './routes/me.js';
+import { occurrenceRoutes } from './routes/occurrences.js';
 
 export const API_PREFIX = '/api/v1';
 
@@ -37,6 +39,8 @@ export async function buildServer(): Promise<FastifyInstance> {
       await api.register(authRoutes);
       await api.register(folderRoutes);
       await api.register(alarmRoutes);
+      await api.register(occurrenceRoutes);
+      await api.register(meRoutes);
     },
     { prefix: API_PREFIX },
   );

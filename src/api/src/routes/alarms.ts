@@ -8,14 +8,18 @@ import { config } from '../config.js';
 import { isUniqueViolation, query, queryOne } from '../db/pool.js';
 import { conflict, notFound } from '../errors.js';
 import { toAlarm, type AlarmRow } from '../domain/mappers.js';
+import { findCollision, specFromRow } from '../domain/conflicts.js';
 import { validateSchedule } from '../domain/validation.js';
+import { occurrencesFor, nextOccurrence } from '../recurrence/engine.js';
 import { normaliseRule } from '../schemas/rule.js';
 import {
   AlarmListSchema,
   AlarmSchema,
   CreateAlarmBodySchema,
+  BulkEnableBodySchema,
   ListAlarmsQuerySchema,
   UpdateAlarmBodySchema,
+  type BulkEnableBody,
   type CreateAlarmBody,
   type ListAlarmsQuery,
   type UpdateAlarmBody,
@@ -45,6 +49,27 @@ async function assertOwnsFolder(userId: string, folderId: string): Promise<void>
   );
   // A folder belonging to somebody else reads as missing, never as forbidden.
   if (!row) throw notFound('Folder');
+}
+
+/** R-08: refuse a write that would put two enabled alarms on the same instant. */
+async function assertNoCollision(
+  folderId: string,
+  candidate: Parameters<typeof findCollision>[1],
+  excludeAlarmId?: string,
+): Promise<void> {
+  const collision = await findCollision(folderId, candidate, excludeAlarmId);
+  if (!collision) return;
+
+  throw conflict(
+    `This alarm would fire at the same moment as "${collision.alarmName}".`,
+    {
+      details: {
+        conflictingAlarmId: collision.alarmId,
+        conflictingAlarmName: collision.alarmName,
+        utc: collision.utc,
+      },
+    },
+  );
 }
 
 function duplicateNameConflict() {
@@ -105,12 +130,46 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
         params,
       );
 
-      // sort=next needs the recurrence engine and is wired up in stage 2;
-      // until then it falls back to creation order.
+      const total = totalRow?.total ?? 0;
+
+      if (request.query.sort === 'next') {
+        // "Next" is computed, not stored, so this sort happens in the
+        // application: fetch the matching rows, order them by their next
+        // occurrence, then paginate. Alarms with no future occurrence sort
+        // last. The next occurrence is computed for disabled alarms too.
+        const all = await query<AlarmRow>(
+          `SELECT ${ALARM_COLUMNS}
+             FROM alarms a JOIN folders f ON f.id = a.folder_id
+            WHERE ${where}`,
+          params,
+        );
+
+        const now = clock.now();
+        const ranked = all.rows
+          .map((row) => ({ row, next: nextOccurrence(specFromRow(row), now)?.utc }))
+          .sort((left, right) => {
+            if (left.next && right.next && left.next !== right.next) {
+              return left.next < right.next ? -1 : 1;
+            }
+            if (left.next && !right.next) return -1;
+            if (!left.next && right.next) return 1;
+            const byName = left.row.name.toLowerCase().localeCompare(right.row.name.toLowerCase());
+            return byName !== 0 ? byName : left.row.id.localeCompare(right.row.id);
+          });
+
+        const start = (page - 1) * pageSize;
+        return {
+          items: ranked.slice(start, start + pageSize).map((entry) => toAlarm(entry.row)),
+          total,
+          page,
+          pageSize,
+        };
+      }
+
       const orderBy =
-        request.query.sort === 'name'
-          ? 'lower(a.name) ASC, a.id ASC'
-          : 'a.created_at ASC, a.id ASC';
+        request.query.sort === 'created'
+          ? 'a.created_at ASC, a.id ASC'
+          : 'lower(a.name) ASC, a.id ASC';
 
       params.push(pageSize, (page - 1) * pageSize);
       const rows = await query<AlarmRow>(
@@ -124,7 +183,7 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
 
       return {
         items: rows.rows.map(toAlarm),
-        total: totalRow?.total ?? 0,
+        total,
         page,
         pageSize,
       };
@@ -145,6 +204,19 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
       await assertOwnsFolder(request.user!.id, request.body.folderId);
       const { timezone } = validateSchedule(request.body);
 
+      const enabled = request.body.enabled ?? true;
+      // A disabled alarm is invisible to R-08, so the check is skipped entirely.
+      if (enabled) {
+        await assertNoCollision(request.body.folderId, {
+          timeOfDay: request.body.timeOfDay,
+          timezone,
+          startDate: request.body.startDate,
+          endDate: request.body.endDate ?? null,
+          endAfterOccurrences: request.body.endAfterOccurrences ?? null,
+          rule: normaliseRule(request.body.rule),
+        });
+      }
+
       const id = randomUUID();
       const now = clock.now();
 
@@ -159,7 +231,7 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
             request.body.folderId,
             request.body.name.trim(),
             request.body.note?.trim() || null,
-            request.body.enabled ?? true,
+            enabled,
             request.body.timeOfDay,
             timezone,
             request.body.startDate,
@@ -214,6 +286,23 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
       await assertOwnsFolder(request.user!.id, request.body.folderId);
       const { timezone } = validateSchedule(request.body);
 
+      // An update keeps the alarm's enabled state; only an enabled alarm can
+      // collide, and it must not be compared against its own previous rows.
+      if (existing.enabled) {
+        await assertNoCollision(
+          request.body.folderId,
+          {
+            timeOfDay: request.body.timeOfDay,
+            timezone,
+            startDate: request.body.startDate,
+            endDate: request.body.endDate ?? null,
+            endAfterOccurrences: request.body.endAfterOccurrences ?? null,
+            rule: normaliseRule(request.body.rule),
+          },
+          request.params.id,
+        );
+      }
+
       try {
         await query(
           `UPDATE alarms
@@ -260,6 +349,53 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
       await query('DELETE FROM alarms WHERE id = $1', [request.params.id]);
       reply.status(204);
       return null;
+    },
+  );
+
+  app.post<{ Body: BulkEnableBody }>(
+    '/alarms/bulk-enable',
+    {
+      schema: {
+        summary: 'Enable or disable several alarms at once',
+        tags: ['alarms'],
+        body: BulkEnableBodySchema,
+        response: { 200: AlarmListSchema, ...errorResponses },
+      },
+    },
+    async (request) => {
+      // Every id must belong to the caller. One that does not makes the whole
+      // request a 404, exactly as a single-alarm request would.
+      const owned = await query<AlarmRow>(
+        `SELECT ${ALARM_COLUMNS}
+           FROM alarms a JOIN folders f ON f.id = a.folder_id
+          WHERE a.id = ANY($1::uuid[]) AND f.user_id = $2`,
+        [request.body.ids, request.user!.id],
+      );
+
+      if (owned.rows.length !== new Set(request.body.ids).size) throw notFound('Alarm');
+
+      // Like the single-alarm toggle, this does not run the R-08 check; see
+      // the README section on conflicts.
+      await query('UPDATE alarms SET enabled = $1, updated_at = $2 WHERE id = ANY($3::uuid[])', [
+        request.body.enabled,
+        clock.now(),
+        request.body.ids,
+      ]);
+
+      const refreshed = await query<AlarmRow>(
+        `SELECT ${ALARM_COLUMNS}
+           FROM alarms a JOIN folders f ON f.id = a.folder_id
+          WHERE a.id = ANY($1::uuid[]) AND f.user_id = $2
+          ORDER BY lower(a.name) ASC`,
+        [request.body.ids, request.user!.id],
+      );
+
+      return {
+        items: refreshed.rows.map(toAlarm),
+        total: refreshed.rows.length,
+        page: 1,
+        pageSize: refreshed.rows.length,
+      };
     },
   );
 

@@ -11,7 +11,7 @@ pg.types.setTypeParser(pg.types.builtins.INT8, (value: string) => Number.parseIn
 
 export const pool = new pg.Pool({ connectionString: config.databaseUrl, max: 10 });
 
-export type QueryParam = string | number | boolean | null | Date | object;
+export type QueryParam = string | number | boolean | null | Date | object | readonly string[];
 
 export async function query<T extends pg.QueryResultRow = pg.QueryResultRow>(
   text: string,
