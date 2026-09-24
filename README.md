@@ -8,11 +8,10 @@ It exists as a system under test. The application was built by Claude Code as
 scaffolding for a test framework written by the repository owner, which lives in
 a separate repository.
 
-> **Stage 1 of 3.** Auth, folders, alarms CRUD and the alarm list UI are in
-> place. The recurrence engine, preview/occurrences endpoints, conflicts panel
-> and create wizard arrive in stage 2; test hooks, seed profiles, OpenAPI and
-> the docs in stage 3. Anything listed below but not yet built is marked
-> *(stage 2)* or *(stage 3)*.
+> **Stage 2 of 3.** The recurrence engine, preview/occurrences/summary
+> endpoints, the conflicts panel and the create wizard are now in place. Test
+> hooks, seed profiles, OpenAPI and the remaining docs arrive in stage 3.
+> Anything listed below but not yet built is marked *(stage 3)*.
 
 ## Running it
 
@@ -64,11 +63,11 @@ returns 404, never 403.
 | R-01 | `endDate` before `startDate` is rejected with 422 and a field error on `endDate`. | done |
 | R-02 | `every` below 1 or above 365 is rejected with 422 on `every`. | done |
 | R-03 | `weekly` with an empty `byWeekday` is rejected with 422. Duplicate weekdays are de-duplicated, not rejected. | done |
-| R-04 | `monthly_day` with `dayOfMonth` 29–31 skips months that are too short. February never produces a 31st. No clamping to the last day. | stage 2 |
+| R-04 | `monthly_day` with `dayOfMonth` 29–31 skips months that are too short. February never produces a 31st. No clamping to the last day. | done |
 | R-05 | `monthly_nth` accepts 1–4 and -1 only. A month without a fifth weekday is skipped. | validation done, skipping stage 2 |
-| R-06 | Spring forward: a local time that does not exist moves forward by the length of the gap (02:30 becomes 03:30 where the clock jumps 02:00 → 03:00). | stage 2 |
-| R-07 | Fall back: a local time that happens twice uses the first, earlier-offset occurrence. | stage 2 |
-| R-08 | Two enabled alarms in one folder may not share a UTC instant within the next 90 days. Colliding creates and updates return 409 with the conflicting alarm's id and the instant. Disabled alarms are ignored. | stage 2 |
+| R-06 | Spring forward: a local time that does not exist moves forward by the length of the gap (02:30 becomes 03:30 where the clock jumps 02:00 → 03:00). | done |
+| R-07 | Fall back: a local time that happens twice uses the first, earlier-offset occurrence. | done |
+| R-08 | Two enabled alarms in one folder may not share a UTC instant within the next 90 days. Colliding creates and updates return 409 with the conflicting alarm's id and the instant. Disabled alarms are ignored. | done |
 | R-09 | Alarm names are unique within a folder, case-insensitively, after trimming. Violations return 409. | done |
 | R-10 | Deleting a folder deletes its alarms and requires `?confirm=true`; without it, 409 carrying the alarm count. | done |
 | R-11 | `timeOfDay` must be `HH:mm`, 00:00 to 23:59. `24:00` is rejected. | done |
@@ -92,6 +91,30 @@ Every non-2xx response uses one envelope:
              "details": { } } }
 ```
 
+### Endpoints
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| POST | `/auth/login`, `/auth/logout` | |
+| GET | `/auth/me` | Returns the user and the CSRF token. |
+| GET/POST | `/folders` | |
+| GET/PATCH/DELETE | `/folders/{id}` | Delete needs `?confirm=true` (R-10). |
+| GET | `/folders/{id}/summary` | Counts, plus the next occurrence. |
+| GET | `/folders/{id}/conflicts` | R-08 collisions, grouped one row per colliding pair. |
+| GET/POST | `/alarms` | Filters: `folderId`, `enabled`, `q`, `sort`, `page`, `pageSize`. |
+| GET/PUT/DELETE | `/alarms/{id}` | |
+| POST | `/alarms/{id}/enable`, `/alarms/{id}/disable` | Does **not** run the R-08 check. |
+| POST | `/alarms/bulk-enable` | `{ ids, enabled }`, all-or-nothing. |
+| POST | `/alarms/preview` | Unsaved schedule in, occurrences out. Nothing persisted. |
+| GET | `/alarms/{id}/occurrences` | `from`, `to`, `limit`. `to - from` may not exceed 366 days. |
+| GET/PUT/DELETE | `/me/alarm-draft` | The wizard draft (A-03). |
+| GET/PUT | `/me/ui-state` | Folder filter and sort order (A-04). |
+| GET | `/health` | Always mounted, whatever `TEST_SUPPORT` is set to. |
+
+Occurrence windows are inclusive at both ends: an occurrence at exactly `from`,
+or at exactly `to`, is returned. The folder summary counts `[now, now + 7 days]`
+on the same convention, over enabled alarms only.
+
 `fields` carries per-field validation failures. `details` carries structured data
 that has no field to attach to: the conflicting alarm and instant for R-08, the
 alarm count for R-10.
@@ -113,12 +136,12 @@ All deterministic: no random delays, no random failures.
 | --- | --- | --- |
 | A-01 | The alarm list loads after first render, with a skeleton and an `aria-busy` container. The delay is `LIST_DELAY_MS`, default 600 ms. | done |
 | A-02 | Field-level validation with inline errors, client- and server-side, including cross-field errors (R-01) that attach to one field. | done |
-| A-03 | Four-step create wizard with a server-side draft that survives reload, and a resumable entry point. | stage 2 |
-| A-04 | Per-user UI state: last folder filter and sort order stored server-side, reapplied at next login. | stage 2 |
+| A-03 | Four-step create wizard with a server-side draft that survives reload, and a resumable entry point. | done |
+| A-04 | Per-user UI state: last folder filter and sort order stored server-side, reapplied at next login. | done |
 | A-05 | Enabling or disabling a row updates optimistically, then reconciles with the server. | done |
 | A-06 | Name search is debounced by 300 ms. | done |
 | A-07 | Toasts appear on success and auto-dismiss after 5 seconds. | done |
-| A-08 | An alarm cannot be created before a folder exists; the conflicts panel and bulk enable/disable appear only once a folder holds two or more alarms. | stage 2 |
+| A-08 | An alarm cannot be created before a folder exists; the conflicts panel and bulk enable/disable appear only once a folder holds two or more alarms. | done |
 
 ## Test IDs
 
@@ -153,6 +176,7 @@ zone, not instants; `time_of_day` is the literal local wall-clock string; and
 
 ## Tests in this repository
 
-Unit tests for the recurrence engine only, under `src/api`, run with `npm test`,
-focused on R-04 through R-07 *(stage 2)*. There is deliberately no end-to-end,
+Unit tests for the recurrence engine only, under
+`src/api/src/recurrence/engine.test.ts`, run with `npm test`. 21 tests covering
+R-04 through R-08. There is deliberately no end-to-end,
 API, UI or performance suite here — that is the separate framework's job.

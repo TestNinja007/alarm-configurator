@@ -91,3 +91,65 @@ export const AlarmListSchema = Type.Object({
   page: Type.Integer(),
   pageSize: Type.Integer(),
 });
+
+export const OccurrenceSchema = Type.Object({
+  utc: Type.String({ examples: ['2026-10-04T13:30:00Z'] }),
+  local: Type.String({ examples: ['2026-10-04T09:30:00-04:00'] }),
+});
+
+export const OccurrenceListSchema = Type.Object({ items: Type.Array(OccurrenceSchema) });
+
+/**
+ * Preview takes an unsaved alarm: only the schedule matters, so folderId and
+ * name are neither required nor consulted. Nothing is persisted and neither
+ * R-08 nor R-09 is evaluated.
+ */
+export const PreviewBodySchema = Type.Object(
+  {
+    ...scheduleProperties,
+    from: Type.Optional(Type.String({ format: 'date-time' })),
+    limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 50, default: 10 })),
+  },
+  { additionalProperties: false },
+);
+export type PreviewBody = Static<typeof PreviewBodySchema>;
+
+export const OccurrencesQuerySchema = Type.Object(
+  {
+    from: Type.Optional(Type.String({ format: 'date-time' })),
+    to: Type.Optional(Type.String({ format: 'date-time' })),
+    limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 50, default: 10 })),
+  },
+  { additionalProperties: false },
+);
+export type OccurrencesQuery = Static<typeof OccurrencesQuerySchema>;
+
+export const FolderSummarySchema = Type.Object({
+  alarmCount: Type.Integer(),
+  enabledCount: Type.Integer(),
+  occurrencesNext7Days: Type.Integer(),
+  nextOccurrence: Type.Union([OccurrenceSchema, Type.Null()]),
+});
+
+export const ConflictPairSchema = Type.Object({
+  alarmAId: UuidSchema,
+  alarmAName: Type.String(),
+  alarmBId: UuidSchema,
+  alarmBName: Type.String(),
+  firstUtc: Type.String(),
+  collisionCount: Type.Integer(),
+});
+
+export const ConflictListSchema = Type.Object({
+  items: Type.Array(ConflictPairSchema),
+  windowDays: Type.Integer(),
+});
+
+export const BulkEnableBodySchema = Type.Object(
+  {
+    ids: Type.Array(UuidSchema, { minItems: 1, maxItems: 100 }),
+    enabled: Type.Boolean(),
+  },
+  { additionalProperties: false },
+);
+export type BulkEnableBody = Static<typeof BulkEnableBodySchema>;

@@ -1,9 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
-import { describeRule, type Alarm, type AlarmList, type AlarmSort, type Folder } from '../api/types';
+import {
+  describeRule,
+  type Alarm,
+  type AlarmDraft,
+  type AlarmList,
+  type AlarmSort,
+  type Folder,
+  type FolderSummary,
+  type UiState,
+} from '../api/types';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { ConflictsPanel } from '../components/ConflictsPanel';
+import { OccurrencePreview } from '../components/OccurrencePreview';
 import { useToast } from '../components/Toaster';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 
@@ -13,6 +24,9 @@ const SORT_OPTIONS: { value: AlarmSort; label: string }[] = [
   { value: 'next', label: 'Next occurrence' },
 ];
 
+/** A-08: these controls only exist once a folder holds two or more alarms. */
+const MULTI_ALARM_THRESHOLD = 2;
+
 export function AlarmsPage() {
   const { folderId = '' } = useParams();
   const queryClient = useQueryClient();
@@ -20,13 +34,43 @@ export function AlarmsPage() {
 
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<AlarmSort>('name');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [previewFor, setPreviewFor] = useState<Alarm | undefined>();
   const [pendingDelete, setPendingDelete] = useState<Alarm | undefined>();
+  const [uiStateLoaded, setUiStateLoaded] = useState(false);
 
   const debouncedSearch = useDebouncedValue(search);
 
   const folder = useQuery({
     queryKey: ['folder', folderId],
     queryFn: () => api.get<Folder>(`/folders/${folderId}`),
+  });
+
+  const summary = useQuery({
+    queryKey: ['folder-summary', folderId],
+    queryFn: () => api.get<FolderSummary>(`/folders/${folderId}/summary`),
+  });
+
+  const draft = useQuery({
+    queryKey: ['alarm-draft'],
+    queryFn: () => api.get<{ draft: AlarmDraft | null }>('/me/alarm-draft'),
+  });
+
+  // A-04: the stored sort order is applied once, before the first list request
+  // that the user would notice.
+  const uiState = useQuery({
+    queryKey: ['ui-state'],
+    queryFn: () => api.get<UiState>('/me/ui-state'),
+  });
+
+  useEffect(() => {
+    if (uiStateLoaded || !uiState.isFetched) return;
+    if (uiState.data?.sort) setSort(uiState.data.sort);
+    setUiStateLoaded(true);
+  }, [uiState.isFetched, uiState.data, uiStateLoaded]);
+
+  const saveUiState = useMutation({
+    mutationFn: (next: { folderId: string; sort: AlarmSort }) => api.put<UiState>('/me/ui-state', next),
   });
 
   const listKey = ['alarms', folderId, debouncedSearch, sort] as const;
@@ -38,14 +82,14 @@ export function AlarmsPage() {
       if (debouncedSearch.trim()) params.set('q', debouncedSearch.trim());
       return api.get<AlarmList>(`/alarms?${params.toString()}`);
     },
-    // Keeps the previous rows on screen while a new search request is in
-    // flight, so the table does not flash back to its skeleton on every keystroke.
+    // Keeps the previous rows visible while a new search is in flight, so the
+    // table does not fall back to its skeleton on every keystroke.
     placeholderData: (previous) => previous,
   });
 
   /**
-   * A-05: the row flips immediately, then reconciles with whatever the server
-   * returns. On failure the previous list is put back and a toast explains why.
+   * A-05: the row flips immediately, then reconciles with the server. On
+   * failure the previous list is restored and a toast explains why.
    */
   const toggleEnabled = useMutation({
     mutationFn: (alarm: Alarm) =>
@@ -80,7 +124,27 @@ export function AlarmsPage() {
       toast.push('success', `"${updated.name}" ${updated.enabled ? 'enabled' : 'disabled'}.`);
     },
     onSettled: () => {
+      // Enabling can create an R-08 collision, so the panel and the counts are
+      // both stale once a toggle lands.
+      void queryClient.invalidateQueries({ queryKey: ['conflicts', folderId] });
       void queryClient.invalidateQueries({ queryKey: ['folder', folderId] });
+      void queryClient.invalidateQueries({ queryKey: ['folder-summary', folderId] });
+    },
+  });
+
+  const bulkToggle = useMutation({
+    mutationFn: (enabled: boolean) =>
+      api.post<AlarmList>('/alarms/bulk-enable', { ids: [...selected], enabled }),
+    onSuccess: async (_result, enabled) => {
+      const count = selected.size;
+      setSelected(new Set());
+      await queryClient.invalidateQueries({ queryKey: ['alarms', folderId] });
+      await queryClient.invalidateQueries({ queryKey: ['conflicts', folderId] });
+      await queryClient.invalidateQueries({ queryKey: ['folder-summary', folderId] });
+      toast.push('success', `${count} alarm${count === 1 ? '' : 's'} ${enabled ? 'enabled' : 'disabled'}.`);
+    },
+    onError: (error) => {
+      toast.push('error', error instanceof ApiError ? error.message : 'Could not update alarms.');
     },
   });
 
@@ -89,7 +153,9 @@ export function AlarmsPage() {
     onSuccess: async (_result, alarm) => {
       setPendingDelete(undefined);
       await queryClient.invalidateQueries({ queryKey: ['alarms', folderId] });
+      await queryClient.invalidateQueries({ queryKey: ['conflicts', folderId] });
       await queryClient.invalidateQueries({ queryKey: ['folder', folderId] });
+      await queryClient.invalidateQueries({ queryKey: ['folder-summary', folderId] });
       toast.push('success', `"${alarm.name}" deleted.`);
     },
     onError: (error) => {
@@ -98,6 +164,23 @@ export function AlarmsPage() {
   });
 
   const rows = alarms.data?.items ?? [];
+  const alarmCount = folder.data?.alarmCount ?? 0;
+  const showMultiAlarmTools = alarmCount >= MULTI_ALARM_THRESHOLD;
+  const resumableDraft = draft.data?.draft;
+
+  function onSortChange(next: AlarmSort) {
+    setSort(next);
+    saveUiState.mutate({ folderId, sort: next });
+  }
+
+  function toggleSelection(alarmId: string) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(alarmId)) next.delete(alarmId);
+      else next.add(alarmId);
+      return next;
+    });
+  }
 
   return (
     <main className="page" data-testid="alarms-page">
@@ -111,7 +194,35 @@ export function AlarmsPage() {
 
       <header className="page-header">
         <h1 className="page-title">{folder.data?.name ?? 'Alarms'}</h1>
+        <Link
+          className="button button-primary"
+          to={`/folders/${folderId}/alarms/new`}
+          data-testid="alarm-create-link"
+        >
+          New alarm
+        </Link>
       </header>
+
+      {resumableDraft ? (
+        <p className="alert alert-info" data-testid="draft-resume-banner">
+          You have an unfinished alarm, last edited {new Date(resumableDraft.updatedAt).toLocaleString()}.{' '}
+          <Link to={`/folders/${folderId}/alarms/new`} data-testid="draft-resume-link">
+            Resume it
+          </Link>
+          .
+        </p>
+      ) : null}
+
+      <section className="summary-strip" data-testid="folder-summary">
+        <span data-testid="summary-alarm-count">{summary.data?.alarmCount ?? 0} alarms</span>
+        <span data-testid="summary-enabled-count">{summary.data?.enabledCount ?? 0} enabled</span>
+        <span data-testid="summary-next-7-days">
+          {summary.data?.occurrencesNext7Days ?? 0} occurrences in the next 7 days
+        </span>
+        <span data-testid="summary-next-occurrence">
+          next: {summary.data?.nextOccurrence?.local ?? 'none'}
+        </span>
+      </section>
 
       <div className="toolbar" data-testid="alarm-toolbar">
         <div className="field">
@@ -132,7 +243,7 @@ export function AlarmsPage() {
           <select
             id="alarm-sort"
             value={sort}
-            onChange={(event) => setSort(event.target.value as AlarmSort)}
+            onChange={(event) => onSortChange(event.target.value as AlarmSort)}
             data-testid="alarm-sort-select"
           >
             {SORT_OPTIONS.map((option) => (
@@ -144,10 +255,30 @@ export function AlarmsPage() {
         </div>
       </div>
 
-      {/*
-        A-01: the container reports aria-busy while the first page loads and
-        renders a skeleton in place of the table.
-      */}
+      {showMultiAlarmTools ? (
+        <div className="bulk-bar" data-testid="bulk-actions-container">
+          <span data-testid="bulk-selection-count">{selected.size} selected</span>
+          <button
+            type="button"
+            className="button"
+            disabled={selected.size === 0 || bulkToggle.isPending}
+            onClick={() => bulkToggle.mutate(true)}
+            data-testid="bulk-enable-button"
+          >
+            Enable selected
+          </button>
+          <button
+            type="button"
+            className="button"
+            disabled={selected.size === 0 || bulkToggle.isPending}
+            onClick={() => bulkToggle.mutate(false)}
+            data-testid="bulk-disable-button"
+          >
+            Disable selected
+          </button>
+        </div>
+      ) : null}
+
       <section
         className="card"
         aria-busy={alarms.isLoading}
@@ -155,7 +286,10 @@ export function AlarmsPage() {
         data-testid="alarm-list-container"
       >
         <h2 id="alarm-list-heading" className="card-title">
-          Alarms <span className="count-badge" data-testid="alarm-total">{alarms.data?.total ?? 0}</span>
+          Alarms{' '}
+          <span className="count-badge" data-testid="alarm-total">
+            {alarms.data?.total ?? 0}
+          </span>
         </h2>
 
         {alarms.isLoading ? (
@@ -175,6 +309,7 @@ export function AlarmsPage() {
             <caption className="visually-hidden">Alarms in {folder.data?.name ?? 'this folder'}</caption>
             <thead>
               <tr>
+                {showMultiAlarmTools ? <th scope="col">Select</th> : null}
                 <th scope="col">Name</th>
                 <th scope="col">Time</th>
                 <th scope="col">Time zone</th>
@@ -186,6 +321,17 @@ export function AlarmsPage() {
             <tbody>
               {rows.map((alarm) => (
                 <tr key={alarm.id} data-testid="alarm-row" data-alarm-id={alarm.id}>
+                  {showMultiAlarmTools ? (
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selected.has(alarm.id)}
+                        onChange={() => toggleSelection(alarm.id)}
+                        aria-label={`Select ${alarm.name}`}
+                        data-testid="alarm-select-checkbox"
+                      />
+                    </td>
+                  ) : null}
                   <th scope="row" data-testid="alarm-name-cell">
                     {alarm.name}
                   </th>
@@ -205,7 +351,24 @@ export function AlarmsPage() {
                       {alarm.enabled ? 'Enabled' : 'Disabled'}
                     </button>
                   </td>
-                  <td>
+                  <td className="row-actions">
+                    <button
+                      type="button"
+                      className="button"
+                      onClick={() => setPreviewFor(alarm)}
+                      aria-label={`Preview occurrences of ${alarm.name}`}
+                      data-testid="alarm-preview-button"
+                    >
+                      Preview
+                    </button>
+                    <Link
+                      className="button"
+                      to={`/alarms/${alarm.id}/edit`}
+                      aria-label={`Edit ${alarm.name}`}
+                      data-testid="alarm-edit-link"
+                    >
+                      Edit
+                    </Link>
                     <button
                       type="button"
                       className="button button-danger"
@@ -222,6 +385,15 @@ export function AlarmsPage() {
           </table>
         )}
       </section>
+
+      {previewFor ? (
+        <OccurrencePreview
+          alarmId={previewFor.id}
+          heading={`Next occurrences of ${previewFor.name}`}
+        />
+      ) : null}
+
+      {showMultiAlarmTools ? <ConflictsPanel folderId={folderId} /> : null}
 
       <ConfirmDialog
         open={pendingDelete !== undefined}

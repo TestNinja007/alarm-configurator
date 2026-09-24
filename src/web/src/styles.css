@@ -414,6 +414,142 @@ a:focus-visible {
   cursor: pointer;
 }
 
+/* Stage 2 components ------------------------------------------------------ */
+
+.alert-info {
+  background: #eaf1fd;
+  color: #17408b;
+}
+
+.summary-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.wizard-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.wizard-step {
+  padding: 6px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.wizard-step-current {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+.wizard-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.fieldset legend {
+  padding: 0 6px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.radio-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.field-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.review-list {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 6px 16px;
+  margin: 0 0 16px;
+}
+
+.review-list dt {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.review-list dd {
+  margin: 0;
+}
+
+.occurrence-list,
+.conflict-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.occurrence-row,
+.conflict-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.occurrence-row:last-child,
+.conflict-row:last-child {
+  border-bottom: 0;
+}
+
+.occurrence-utc,
+.conflict-detail {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 /* Responsive from 360px upward ------------------------------------------- */
 
 @media (max-width: 560px) {
