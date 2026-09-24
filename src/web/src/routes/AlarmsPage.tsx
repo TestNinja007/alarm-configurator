@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
@@ -63,11 +63,12 @@ export function AlarmsPage() {
     queryFn: () => api.get<UiState>('/me/ui-state'),
   });
 
-  useEffect(() => {
-    if (uiStateLoaded || !uiState.isFetched) return;
-    if (uiState.data?.sort) setSort(uiState.data.sort);
+  // Applied during render rather than in an effect, so the first list request
+  // already carries the stored sort order instead of firing twice.
+  if (uiState.isFetched && !uiStateLoaded) {
     setUiStateLoaded(true);
-  }, [uiState.isFetched, uiState.data, uiStateLoaded]);
+    if (uiState.data?.sort) setSort(uiState.data.sort);
+  }
 
   const saveUiState = useMutation({
     mutationFn: (next: { folderId: string; sort: AlarmSort }) => api.put<UiState>('/me/ui-state', next),

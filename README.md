@@ -8,11 +8,6 @@ It exists as a system under test. The application was built by Claude Code as
 scaffolding for a test framework written by the repository owner, which lives in
 a separate repository.
 
-> **Stage 2 of 3.** The recurrence engine, preview/occurrences/summary
-> endpoints, the conflicts panel and the create wizard are now in place. Test
-> hooks, seed profiles, OpenAPI and the remaining docs arrive in stage 3.
-> Anything listed below but not yet built is marked *(stage 3)*.
-
 ## Running it
 
 ```
@@ -50,7 +45,7 @@ returns 404, never 403.
 | --- | --- | --- |
 | `DATABASE_URL` | — | PostgreSQL connection string. Required. In Docker the database is also published on host port 5433 so a test framework can query it directly. |
 | `PORT` | `8080` | The API serves the built SPA on this port too, so everything is one origin. |
-| `TEST_SUPPORT` | `0` | `1` mounts the `/api/v1/test/*` hooks *(stage 3)*. |
+| `TEST_SUPPORT` | `0` | `1` mounts the `/api/v1/test/*` hooks. With any other value they are absent from the router and from the OpenAPI document. |
 | `SEED_ANCHOR` | `2026-06-15T18:00:00Z` | Every seeded date derives from this instant, so reseeding twice produces identical data. |
 | `LIST_DELAY_MS` | `600` | Fixed delay in front of the alarm list so the A-01 skeleton is observable. Never random. Set `0` to remove it. |
 | `SESSION_SECRET` | — | Signs session cookies. |
@@ -109,7 +104,11 @@ Every non-2xx response uses one envelope:
 | GET | `/alarms/{id}/occurrences` | `from`, `to`, `limit`. `to - from` may not exceed 366 days. |
 | GET/PUT/DELETE | `/me/alarm-draft` | The wizard draft (A-03). |
 | GET/PUT | `/me/ui-state` | Folder filter and sort order (A-04). |
-| GET | `/health` | Always mounted, whatever `TEST_SUPPORT` is set to. |
+| GET | `/health` | Always mounted, whatever `TEST_SUPPORT` is set to (T-04). |
+| GET | `/openapi.json` | OpenAPI 3.1, generated from the schemas the server validates with. |
+| POST | `/test/reset` | T-01. `{ "profile": "empty" \| "demo" }`, default `demo`. |
+| GET/PUT | `/test/clock` | T-02. `{ "now": "..." }` pins it, `{ "mode": "system" }` releases it. |
+| POST | `/test/users` | T-03. Returns a throwaway account's credentials. |
 
 Occurrence windows are inclusive at both ends: an occurrence at exactly `from`,
 or at exactly `to`, is returned. The folder summary counts `[now, now + 7 days]`
@@ -143,6 +142,30 @@ All deterministic: no random delays, no random failures.
 | A-07 | Toasts appear on success and auto-dismiss after 5 seconds. | done |
 | A-08 | An alarm cannot be created before a folder exists; the conflicts panel and bulk enable/disable appear only once a folder holds two or more alarms. | done |
 
+## Test hooks
+
+Mounted only when `TEST_SUPPORT=1`. With the flag off they are not registered
+at all, so a request returns an ordinary 404 and they do not appear in the
+OpenAPI document.
+
+| ID | Hook |
+| --- | --- |
+| T-01 | `POST /test/reset` restores a seed profile. Measured at roughly 250 ms locally, well inside the 3-second budget. It also clears the sign-in rate limiter, which is in-process state a reset would otherwise leave behind. |
+| T-02 | `PUT /test/clock` pins or releases the server clock. |
+| T-03 | `POST /test/users` creates a throwaway account with no folders, so the A-08 setup dependency can be exercised from nothing. Removed by the next reset. |
+| T-04 | `GET /health` reports version, database connectivity, whether test support is on, and the current clock state. Always available. |
+
+### Pin the clock before signing in
+
+Every server-side reading of "now" goes through one clock, including session
+expiry. Pinning the clock past an existing session's expiry therefore
+invalidates that session, and the next request returns 401. Pin first, then sign
+in.
+
+The clock genuinely drives the domain: a folder created while the clock is
+pinned to `2026-10-30T12:00:00Z` records exactly that instant in `created_at`.
+No domain timestamp comes from the database's own `now()`.
+
 ## Test IDs
 
 Every interactive element and every key container carries `data-testid`, in
@@ -168,11 +191,24 @@ published on host port **5433**, so a framework can assert against it directly:
 postgresql://alarm_app:alarm_app@127.0.0.1:5433/alarm_configurator
 ```
 
-Schema notes, the UTC storage convention and an ER diagram land in
-`docs/schema.md` *(stage 3)*. In short: every instant column is `timestamptz`
-holding UTC; `start_date` and `end_date` are calendar dates in the alarm's own
-zone, not instants; `time_of_day` is the literal local wall-clock string; and
-`rule` is a `jsonb` discriminated union keyed on `type`.
+[`docs/schema.md`](docs/schema.md) documents the tables, the key columns, the
+constraints and the UTC storage convention, with a Mermaid ER diagram. In short:
+every instant column is `timestamptz` holding UTC; `start_date` and `end_date`
+are calendar dates in the alarm's own zone, not instants; `time_of_day` is the
+literal local wall-clock string; and `rule` is a `jsonb` discriminated union
+keyed on `type`.
+
+Occurrences are **not** stored. They are computed on each request, because a
+stored list would be wrong the moment a time-zone database update changed a DST
+rule.
+
+## Documentation
+
+| File | Contents |
+| --- | --- |
+| [`docs/seed.md`](docs/seed.md) | Every seeded record with its id, generated from the fixtures by `npm run docs:seed` so it cannot drift. |
+| [`docs/schema.md`](docs/schema.md) | Tables, constraints, the time-storage convention and an ER diagram. |
+| [`docs/decisions/`](docs/decisions/) | Why TypeBox, why a discriminated union, why one clock, why enabling skips the R-08 check, why no ORM. |
 
 ## Tests in this repository
 

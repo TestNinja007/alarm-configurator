@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
@@ -94,7 +94,7 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
   const alarmId = params.alarmId;
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<WizardForm>(() => emptyForm(params.folderId ?? ''));
-  const [hydrated, setHydrated] = useState(mode === 'create' ? false : false);
+  const [hydrated, setHydrated] = useState(false);
 
   const existing = useQuery({
     queryKey: ['alarm', alarmId],
@@ -108,25 +108,29 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
     queryFn: () => api.get<{ draft: AlarmDraft | null }>('/me/alarm-draft'),
   });
 
-  // Restore whichever source this mode uses, exactly once.
-  useEffect(() => {
-    if (hydrated) return;
+  /*
+   * Restore whichever source this mode uses, exactly once.
+   *
+   * This runs during render rather than inside an effect. React applies a
+   * state update made while rendering before it commits, so there is no
+   * cascading render and no flash of the empty form; an effect would produce
+   * both. It fires once because `hydrated` is set in the same pass.
+   */
+  const sourceReady = mode === 'edit' ? Boolean(existing.data) : draft.isFetched;
+
+  if (sourceReady && !hydrated) {
+    setHydrated(true);
 
     if (mode === 'edit' && existing.data) {
       setForm(formFromAlarm(existing.data));
-      setHydrated(true);
-      return;
-    }
-
-    if (mode === 'create' && draft.isFetched) {
+    } else {
       const saved = draft.data?.draft;
-      if (saved && saved.payload && typeof saved.payload === 'object') {
+      if (saved && typeof saved.payload === 'object') {
         setForm({ ...emptyForm(params.folderId ?? ''), ...(saved.payload as Partial<WizardForm>) });
         setStep(saved.step);
       }
-      setHydrated(true);
     }
-  }, [mode, existing.data, draft.isFetched, draft.data, hydrated, params.folderId]);
+  }
 
   const saveDraft = useMutation({
     mutationFn: (next: { step: number; payload: WizardForm }) =>
