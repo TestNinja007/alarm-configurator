@@ -1,0 +1,5 @@
+# Normalise to LF in the repository. Shell scripts and SQL are read by Linux
+# containers, where a CRLF shebang makes the script fail to execute at all.
+* text=auto eol=lf
+*.sh text eol=lf
+*.sql text eol=lf
