@@ -37,6 +37,12 @@ export const config = {
   databaseUrl: required('DATABASE_URL'),
   port: integer('PORT', 8080),
   host: process.env.HOST ?? '0.0.0.0',
+  /**
+   * Shows the public-sandbox banner in the UI. Off by default, and deliberately
+   * so: a permanent banner on every page would sit in the middle of whatever a
+   * test framework is trying to assert against locally.
+   */
+  demoMode: process.env.DEMO_MODE === '1',
   /** T-01..T-03 are only mounted when this is exactly "1". */
   testSupport: process.env.TEST_SUPPORT === '1',
   seedAnchor: process.env.SEED_ANCHOR ?? '2026-06-15T18:00:00Z',

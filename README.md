@@ -46,6 +46,7 @@ The deployed configuration differs from local in three ways, all deliberate:
 | `TEST_SUPPORT` | `0` | The hooks need no authentication, so with them on anyone reading this page could reset the public instance. |
 | `SEED_ON_START` | `if-empty` | Seeds on the first boot against an empty database, and never again, so a redeploy does not wipe it. |
 | `SESSION_SECRET` | generated | Production refuses to start on a short or missing secret. |
+| `DEMO_MODE` | `1` | Shows a banner saying the instance is a public sandbox with published credentials. Off locally, so it never sits in the way of a test run. |
 
 Session cookies are marked `Secure` whenever `NODE_ENV=production`, and the
 server trusts `X-Forwarded-*` so it sees the real protocol behind the platform's
@@ -69,6 +70,7 @@ returns 404, never 403.
 | `PORT` | `8080` | The API serves the built SPA on this port too, so everything is one origin. |
 | `TEST_SUPPORT` | `0` | `1` mounts the `/api/v1/test/*` hooks. With any other value they are absent from the router and from the OpenAPI document. |
 | `SEED_ANCHOR` | `2026-06-15T18:00:00Z` | Every seeded date derives from this instant, so reseeding twice produces identical data. |
+| `DEMO_MODE` | `0` | `1` shows the public-sandbox banner on every page. The deployed instance sets it; leave it off locally. |
 | `LIST_DELAY_MS` | `600` | Fixed delay in front of the alarm list so the A-01 skeleton is observable. Never random. Set `0` to remove it. |
 | `SESSION_SECRET` | — | Signs session cookies. |
 | `SEED_PROFILE` | `demo` | Which profile the container seeds at startup: `demo` or `empty`. |
