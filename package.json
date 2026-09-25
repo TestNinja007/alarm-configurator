@@ -20,6 +20,7 @@
     "test": "npm run test --workspace @alarm/api",
     "typecheck": "npm run typecheck --workspace @alarm/api && npm run typecheck --workspace @alarm/web",
     "lint": "npm run lint --workspace @alarm/api && npm run lint --workspace @alarm/web",
-    "docs:seed": "tsx scripts/generate-seed-doc.ts"
+    "docs:seed": "tsx scripts/generate-seed-doc.ts",
+    "ci": "npm run lint && npm run typecheck && npm run build && npm test"
   }
 }
