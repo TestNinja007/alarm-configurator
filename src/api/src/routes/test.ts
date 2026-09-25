@@ -6,6 +6,10 @@ import { hashPassword } from '../auth/password.js';
 import { clock } from '../clock.js';
 import { query } from '../db/pool.js';
 import { validationError } from '../errors.js';
+import { peekCode } from '../auth/verification.js';
+import { capturedMessages, clearCapturedMessages } from '../mail/mailer.js';
+import { queryOne } from '../db/pool.js';
+import { notFound } from '../errors.js';
 import { seed, type SeedProfile } from '../seed/index.js';
 import { errorResponses } from '../schemas/common.js';
 
@@ -46,6 +50,78 @@ const TestUserSchema = Type.Object({
 });
 
 export async function testRoutes(app: FastifyInstance): Promise<void> {
+  app.get<{ Querystring: { email: string } }>(
+    '/test/verification-code',
+    {
+      schema: {
+        summary: 'The outstanding verification code for an address',
+        description:
+          'Saves a test having to read an inbox. Only available when TEST_SUPPORT=1.',
+        tags: ['test-support'],
+        querystring: Type.Object({ email: Type.String({ minLength: 3, maxLength: 254 }) }),
+        response: {
+          200: Type.Object({ email: Type.String(), code: Type.String() }),
+          ...errorResponses,
+        },
+      },
+    },
+    async (request) => {
+      const row = await queryOne<{ id: string }>(
+        'SELECT id FROM users WHERE lower(btrim(email)) = lower(btrim($1))',
+        [request.query.email],
+      );
+      if (!row) throw notFound('Account');
+
+      const code = await peekCode(row.id);
+      if (!code) throw notFound('Verification code');
+
+      return { email: request.query.email, code };
+    },
+  );
+
+  app.get(
+    '/test/mail',
+    {
+      schema: {
+        summary: 'Messages held by the capture transport',
+        description:
+          'Empty under MAIL_TRANSPORT=smtp, where messages go to the mail server instead. ' +
+          'Only available when TEST_SUPPORT=1.',
+        tags: ['test-support'],
+        response: {
+          200: Type.Object({
+            items: Type.Array(
+              Type.Object({
+                to: Type.String(),
+                subject: Type.String(),
+                text: Type.String(),
+                sentAt: Type.String(),
+              }),
+            ),
+          }),
+          ...errorResponses,
+        },
+      },
+    },
+    async () => ({ items: capturedMessages() }),
+  );
+
+  app.delete(
+    '/test/mail',
+    {
+      schema: {
+        summary: 'Discard captured messages',
+        tags: ['test-support'],
+        response: { 204: Type.Null(), ...errorResponses },
+      },
+    },
+    async (_request, reply) => {
+      clearCapturedMessages();
+      reply.status(204);
+      return null;
+    },
+  );
+
   app.post<{ Body: { profile?: SeedProfile } }>(
     '/test/reset',
     {

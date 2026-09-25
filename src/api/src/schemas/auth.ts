@@ -52,3 +52,30 @@ export const RegisterBodySchema = Type.Object(
   { additionalProperties: false },
 );
 export type RegisterBody = Static<typeof RegisterBodySchema>;
+
+/** What registration returns: an account exists, but it cannot be used yet. */
+export const PendingVerificationSchema = Type.Object({
+  email: Type.String(),
+  verificationRequired: Type.Boolean(),
+  expiresAt: Type.String({ format: 'date-time' }),
+  /**
+   * Present only when the server is not really sending mail, so a sandbox
+   * without a provider is still usable. Absent under a working SMTP transport.
+   */
+  code: Type.Optional(Type.String()),
+});
+
+export const VerifyEmailBodySchema = Type.Object(
+  {
+    email: Type.String({ minLength: 3, maxLength: 254 }),
+    code: Type.String({ minLength: 6, maxLength: 6, pattern: '^[0-9]{6}$' }),
+  },
+  { additionalProperties: false },
+);
+export type VerifyEmailBody = Static<typeof VerifyEmailBodySchema>;
+
+export const ResendVerificationBodySchema = Type.Object(
+  { email: Type.String({ minLength: 3, maxLength: 254 }) },
+  { additionalProperties: false },
+);
+export type ResendVerificationBody = Static<typeof ResendVerificationBodySchema>;

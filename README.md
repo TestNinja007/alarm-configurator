@@ -72,7 +72,11 @@ returns 404, never 403.
 | `TEST_SUPPORT` | `0` | `1` mounts the `/api/v1/test/*` hooks. With any other value they are absent from the router and from the OpenAPI document. |
 | `SEED_ANCHOR` | `2026-06-15T18:00:00Z` | Every seeded date derives from this instant, so reseeding twice produces identical data. |
 | `DEMO_MODE` | `0` | `1` shows the public-sandbox banner on every page. The deployed instance sets it; leave it off locally. |
-| `REGISTRATION_OPEN` | `0` | `1` opens `POST /auth/register` and shows the sign-up link. Off locally, so the seeded-users baseline stays unchanged. |
+| `REGISTRATION_OPEN` | `0` | `1` opens registration and shows the sign-up link. Off locally, so the seeded-users baseline stays unchanged. |
+| `MAIL_TRANSPORT` | `capture` | `capture`, `log` or `smtp`. See [Email](#email). |
+| `MAIL_HOST` / `MAIL_PORT` | `127.0.0.1` / `1025` | The SMTP server. Compose points these at Mailpit. |
+| `MAIL_USER` / `MAIL_PASSWORD` | — | Only needed by a real provider. |
+| `MAIL_FROM` | a `.test` address | The From header. |
 | `LIST_DELAY_MS` | `600` | Fixed delay in front of the alarm list so the A-01 skeleton is observable. Never random. Set `0` to remove it. |
 | `SESSION_SECRET` | — | Signs session cookies. |
 | `SEED_PROFILE` | `demo` | Which profile the container seeds at startup: `demo` or `empty`. |
@@ -102,10 +106,15 @@ can come to exist: create the second alarm disabled, then enable it. Without
 this gap the conflicts panel could never have anything to show, because every
 write path would have refused the state it is meant to display.
 
-### Registration
+### Registration and email verification
 
-Open only where `REGISTRATION_OPEN=1`; elsewhere the route is not mounted, so it
-returns 404 rather than an error that would confirm it exists.
+Open only where `REGISTRATION_OPEN=1`; elsewhere the routes are not mounted, so
+they return 404 rather than an error that would confirm they exist.
+
+Registration is two steps. `POST /auth/register` creates the account, issues a
+six-digit code and emails it, but **returns no session** — the account cannot be
+signed into until `POST /auth/verify` accepts the code. Confirming is what signs
+you in for the first time.
 
 | Case | Response |
 | --- | --- |
@@ -115,12 +124,54 @@ returns 404 rather than an error that would confirm it exists.
 | Malformed email | 422 on `email` |
 | Address already registered, in any casing | 409 on `email`, code `duplicate_email` |
 | More than 5 attempts for one address in 15 minutes | 429 |
+| Signing in before confirming | 401, `details.reason` is `email_not_verified` |
+| Wrong code | 422 on `code` |
+| Wrong code, 5 times | 429 — the correct code is refused too until a new one is issued |
+| Code older than 15 minutes | 422 on `code`, code `expired` |
+| Verifying an unknown address | 422, **identical** to a wrong code, so this is not an address checker |
+| Resend | Issues a new code and invalidates the previous one |
 
 Email comparison is case-insensitive and the name is trimmed, matching the rest
-of the application. There is **no address verification and no password reset**:
-the application makes no external network calls at runtime, so it cannot send
-email. An account whose password is forgotten is unrecoverable, which is stated
-on the form.
+of the application. There is still **no password reset**, and the form says so.
+
+## Email
+
+`MAIL_TRANSPORT` picks how messages leave:
+
+| Value | Behaviour |
+| --- | --- |
+| `capture` | Held in memory, nothing sent. The default, so `npm start` needs no mail server. |
+| `log` | Captured and printed. |
+| `smtp` | A real SMTP conversation, to Mailpit locally or a provider in production. |
+
+`docker compose up --build` runs **Mailpit** alongside the app and points the
+API at it. Messages never leave the machine, so the offline guarantee still
+holds under test, and Mailpit's own UI and API are on <http://localhost:8025> —
+which is where a test can read a real inbox.
+
+Two ways to get a code without reading mail, both requiring `TEST_SUPPORT=1`:
+
+- `GET /api/v1/test/verification-code?email=…` — the outstanding code
+- `GET /api/v1/test/mail` — everything the `capture` transport is holding
+
+**The code is returned in the registration response only when
+`MAIL_TRANSPORT` is not `smtp`.** That keeps a sandbox with no mail provider
+usable, and it is withheld the moment real sending is configured — otherwise
+anyone could register an address they do not own and read its code straight off
+the response.
+
+`GET /api/v1/health` reports the transport and whether the mail server answers,
+so a deployment that cannot send is visible rather than silently swallowing
+sign-ups.
+
+### On the original "no external network calls" rule
+
+The brief written for the initial build forbade outbound calls at runtime, for
+good reason: a system under test that depends on a third party inherits that
+third party's failures. Sending genuine email breaks that rule, so it is a
+setting rather than a default. Under `docker compose`, mail goes to a container
+on the same network and nothing leaves the machine; only a deployment pointed at
+a real provider makes an outbound call.
 
 ## Error shape
 
@@ -136,7 +187,9 @@ Every non-2xx response uses one envelope:
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| POST | `/auth/register` | Creates an account and signs it in. 404 unless `REGISTRATION_OPEN=1`. |
+| POST | `/auth/register` | Creates an unverified account and emails a code. No session. 404 unless `REGISTRATION_OPEN=1`. |
+| POST | `/auth/verify` | Confirms the code and signs in. |
+| POST | `/auth/resend-verification` | Issues a fresh code, invalidating the previous one. |
 | POST | `/auth/login`, `/auth/logout` | |
 | GET | `/auth/me` | Returns the user and the CSRF token. |
 | GET/POST | `/folders` | |
@@ -156,6 +209,8 @@ Every non-2xx response uses one envelope:
 | POST | `/test/reset` | T-01. `{ "profile": "empty" \| "demo" }`, default `demo`. |
 | GET/PUT | `/test/clock` | T-02. `{ "now": "..." }` pins it, `{ "mode": "system" }` releases it. |
 | POST | `/test/users` | T-03. Returns a throwaway account's credentials. |
+| GET | `/test/verification-code` | The outstanding code for an address. |
+| GET/DELETE | `/test/mail` | Messages held by the `capture` transport. |
 
 Occurrence windows are inclusive at both ends: an occurrence at exactly `from`,
 or at exactly `to`, is returned. The folder summary counts `[now, now + 7 days]`

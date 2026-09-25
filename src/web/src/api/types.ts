@@ -119,3 +119,12 @@ export interface UiState {
   enabled: boolean | null;
   updatedAt: string | null;
 }
+
+/** Registration's answer: the account exists but is not usable yet. */
+export interface PendingVerification {
+  email: string;
+  verificationRequired: boolean;
+  expiresAt: string;
+  /** Present only where the server is not really sending mail. */
+  code?: string;
+}
