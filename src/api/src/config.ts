@@ -87,8 +87,12 @@ export const config = {
     host: process.env.MAIL_HOST ?? '127.0.0.1',
     port: integer('MAIL_PORT', 1025),
     secure: process.env.MAIL_SECURE === '1',
-    // Mailpit accepts plain SMTP; a provider on 587 will not.
-    ignoreTls: process.env.MAIL_IGNORE_TLS !== '0',
+    /**
+     * Skipping STARTTLS means the SMTP login is sent in the clear, so it
+     * defaults to off. Only a local catcher like Mailpit, which speaks plain
+     * SMTP and never leaves the machine, should turn it on.
+     */
+    ignoreTls: process.env.MAIL_IGNORE_TLS === '1',
     user: process.env.MAIL_USER,
     password: process.env.MAIL_PASSWORD,
     from: process.env.MAIL_FROM ?? 'Alarm Configurator <no-reply@alarm-configurator.test>',
