@@ -1,0 +1,37 @@
+# Render blueprint. Deploys the app as a Node service rather than from the
+# Dockerfile: fewer moving parts, and the Dockerfile has not been exercised.
+services:
+  - type: web
+    name: alarm-configurator
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start --workspace @alarm/api
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: alarm-configurator-db
+          property: connectionString
+      - key: SESSION_SECRET
+        generateValue: true
+      # Off by default: the hooks need no authentication, so with them on
+      # anyone who reads the README could reset the public demo.
+      - key: TEST_SUPPORT
+        value: "0"
+      # Seed once, on the first boot against an empty database. A redeploy
+      # must not wipe whatever visitors have done since.
+      - key: SEED_ON_START
+        value: if-empty
+      - key: SEED_PROFILE
+        value: demo
+      - key: LIST_DELAY_MS
+        value: "600"
+
+databases:
+  - name: alarm-configurator-db
+    plan: free
+    databaseName: alarm_configurator
+    user: alarm_app

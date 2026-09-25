@@ -63,10 +63,10 @@ export async function destroySession(sessionId: string): Promise<void> {
   await query('DELETE FROM sessions WHERE id = $1', [sessionId]);
 }
 
-/** Cookie options shared by both cookies; secure is off because the app runs on plain http. */
+/** Cookie options shared by both cookies. */
 export const cookieOptions = {
   path: '/',
   sameSite: 'lax' as const,
-  secure: false,
+  secure: config.cookieSecure,
   maxAge: config.sessionTtlDays * 24 * 60 * 60,
 };

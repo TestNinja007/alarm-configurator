@@ -33,6 +33,24 @@ npm run build
 npm start
 ```
 
+## Deploying
+
+[`render.yaml`](render.yaml) is a Render blueprint: a free Postgres plus a Node
+web service that builds with `npm ci && npm run build` and starts with
+`npm start`, which migrates, seeds if the database is empty, then serves.
+
+The deployed configuration differs from local in three ways, all deliberate:
+
+| Setting | Deployed | Why |
+| --- | --- | --- |
+| `TEST_SUPPORT` | `0` | The hooks need no authentication, so with them on anyone reading this page could reset the public instance. |
+| `SEED_ON_START` | `if-empty` | Seeds on the first boot against an empty database, and never again, so a redeploy does not wipe it. |
+| `SESSION_SECRET` | generated | Production refuses to start on a short or missing secret. |
+
+Session cookies are marked `Secure` whenever `NODE_ENV=production`, and the
+server trusts `X-Forwarded-*` so it sees the real protocol behind the platform's
+proxy.
+
 ## Seeded users
 
 | Email | Password |

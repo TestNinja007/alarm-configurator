@@ -20,7 +20,20 @@ function integer(name: string, fallback: number): number {
   return parsed;
 }
 
+const isProduction = process.env.NODE_ENV === 'production';
+
+function sessionSecret(): string {
+  const supplied = process.env.SESSION_SECRET;
+  if (supplied && supplied.length >= 32) return supplied;
+  // A public deployment must not fall back to a known development value.
+  if (isProduction) {
+    throw new Error('SESSION_SECRET must be set to at least 32 characters in production.');
+  }
+  return supplied ?? 'insecure-development-session-secret';
+}
+
 export const config = {
+  isProduction,
   databaseUrl: required('DATABASE_URL'),
   port: integer('PORT', 8080),
   host: process.env.HOST ?? '0.0.0.0',
@@ -32,7 +45,26 @@ export const config = {
    * state is observable. Never random. Set to 0 to remove it.
    */
   listDelayMs: integer('LIST_DELAY_MS', 600),
-  sessionSecret: process.env.SESSION_SECRET ?? 'insecure-development-session-secret',
+  sessionSecret: sessionSecret(),
+  /**
+   * Session cookies are Secure whenever the app is served over HTTPS. Defaults
+   * to on in production, where a cookie sent in the clear would be a real
+   * problem, and off locally, where there is no TLS to attach it to.
+   */
+  cookieSecure: process.env.COOKIE_SECURE
+    ? process.env.COOKIE_SECURE === '1'
+    : isProduction,
+  /**
+   * Whether startup seeds the database.
+   *   if-empty  seed only when there are no users yet (the production default)
+   *   always    reseed on every boot, which is what a disposable container wants
+   *   never     leave the database alone
+   */
+  seedOnStart: (process.env.SEED_ON_START ?? (isProduction ? 'if-empty' : 'always')) as
+    | 'if-empty'
+    | 'always'
+    | 'never',
+  seedProfile: (process.env.SEED_PROFILE ?? 'demo') as 'demo' | 'empty',
   sessionTtlDays: integer('SESSION_TTL_DAYS', 7),
   /** Directory holding the built SPA; absent during API-only development. */
   webDistDir: resolve(repoRoot, 'src', 'web', 'dist'),

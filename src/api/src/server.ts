@@ -20,6 +20,9 @@ export const API_PREFIX = '/api/v1';
 export async function buildServer(): Promise<FastifyInstance> {
   const app = Fastify({
     logger: { level: process.env.LOG_LEVEL ?? 'info' },
+    // Hosting platforms terminate TLS in front of the app, so the real
+    // protocol and client address arrive in X-Forwarded-* headers.
+    trustProxy: config.isProduction,
     ajv: {
       customOptions: {
         // The rule schemas are discriminated unions; without this Ajv reports
