@@ -14,6 +14,10 @@ a separate repository.
 docker compose up --build
 ```
 
+> The compose stack is written but has not been run: it was developed against a
+> local PostgreSQL instance. Everything below the Docker line has been verified;
+> the container build has not.
+
 The app is at <http://localhost:8080> and the API at
 <http://localhost:8080/api/v1>. Migrations and the seed run automatically before
 the server starts.
@@ -209,6 +213,11 @@ rule.
 | [`docs/seed.md`](docs/seed.md) | Every seeded record with its id, generated from the fixtures by `npm run docs:seed` so it cannot drift. |
 | [`docs/schema.md`](docs/schema.md) | Tables, constraints, the time-storage convention and an ER diagram. |
 | [`docs/decisions/`](docs/decisions/) | Why TypeBox, why a discriminated union, why one clock, why enabling skips the R-08 check, why no ORM. |
+
+## Checks
+
+`npm run ci` runs the same four steps as the GitHub Actions workflow — lint,
+type-check, build, unit tests — so the code can be validated without a remote.
 
 ## Tests in this repository
 
