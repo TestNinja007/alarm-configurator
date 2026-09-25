@@ -38,6 +38,22 @@ services:
       # baseline the test framework is written against stays unchanged.
       - key: REGISTRATION_OPEN
         value: "1"
+      # Email. The three secret-ish values are set in the dashboard rather
+      # than committed here.
+      - key: MAIL_TRANSPORT
+        value: smtp
+      - key: MAIL_HOST
+        value: smtp-relay.brevo.com
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_IGNORE_TLS
+        value: "0"
+      - key: MAIL_USER
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_FROM
+        sync: false
       - key: LIST_DELAY_MS
         value: "600"
 

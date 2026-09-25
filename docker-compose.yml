@@ -52,6 +52,9 @@ services:
       MAIL_TRANSPORT: smtp
       MAIL_HOST: mail
       MAIL_PORT: "1025"
+      # Mailpit speaks plain SMTP and is on this machine, so STARTTLS is
+      # neither offered nor needed. Never set this against a real provider.
+      MAIL_IGNORE_TLS: "1"
     ports:
       - "8080:8080"
 
