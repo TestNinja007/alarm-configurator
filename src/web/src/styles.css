@@ -414,6 +414,16 @@ a:focus-visible {
   cursor: pointer;
 }
 
+.demo-banner {
+  padding: 10px var(--gutter);
+  background: #fff4e5;
+  border-bottom: 1px solid #f0c98a;
+  color: #7a4b06;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
 /* Stage 2 components ------------------------------------------------------ */
 
 .alert-info {

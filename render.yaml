@@ -30,6 +30,10 @@ services:
         value: if-empty
       - key: SEED_PROFILE
         value: demo
+      # This instance is a public sandbox with published credentials, so it
+      # says so on every page.
+      - key: DEMO_MODE
+        value: "1"
       - key: LIST_DELAY_MS
         value: "600"
 

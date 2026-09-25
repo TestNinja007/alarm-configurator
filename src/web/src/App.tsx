@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { ApiError, api } from './api/client';
 import type { Session } from './api/types';
+import { DemoBanner } from './components/DemoBanner';
 import { AlarmsPage } from './routes/AlarmsPage';
 import { FoldersPage } from './routes/FoldersPage';
 import { LoginPage } from './routes/LoginPage';
@@ -60,11 +61,19 @@ export function App() {
   }
 
   if (!session.data) {
-    return location.pathname === '/login' ? <LoginPage /> : <Navigate to="/login" replace />;
+    return location.pathname === '/login' ? (
+      <>
+        <DemoBanner />
+        <LoginPage />
+      </>
+    ) : (
+      <Navigate to="/login" replace />
+    );
   }
 
   return (
     <div className="app-shell">
+      <DemoBanner />
       <TopBar session={session.data} />
       <Routes>
         <Route path="/" element={<Navigate to="/folders" replace />} />
