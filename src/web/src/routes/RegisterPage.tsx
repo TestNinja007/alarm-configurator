@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
-import type { Session } from '../api/types';
+import type { PendingVerification } from '../api/types';
 
 /**
  * Registration signs the new account straight in, so there is no second step to
@@ -11,17 +11,19 @@ import type { Session } from '../api/types';
  */
 export function RegisterPage() {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
 
   const register = useMutation({
     mutationFn: (body: { email: string; name: string; password: string }) =>
-      api.post<Session>('/auth/register', body),
-    onSuccess: (session) => {
-      queryClient.setQueryData(['session'], session);
-      void navigate('/folders');
+      api.post<PendingVerification>('/auth/register', body),
+    onSuccess: (pending) => {
+      // The account is not usable until the code is entered, so the next stop
+      // is the verification step rather than the app.
+      const query = new URLSearchParams({ email: pending.email });
+      if (pending.code) query.set('code', pending.code);
+      void navigate(`/verify?${query.toString()}`);
     },
   });
 
@@ -115,7 +117,8 @@ export function RegisterPage() {
           ) : (
             <p id="register-password-hint" className="field-hint" data-testid="register-password-hint">
               At least 10 characters. There is no password reset on this instance, so
-              use something you will remember.
+              use something you will remember. We will email you a code to confirm the
+              address.
             </p>
           )}
         </div>

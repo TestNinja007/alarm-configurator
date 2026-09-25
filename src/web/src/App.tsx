@@ -7,6 +7,7 @@ import { AlarmsPage } from './routes/AlarmsPage';
 import { FoldersPage } from './routes/FoldersPage';
 import { LoginPage } from './routes/LoginPage';
 import { RegisterPage } from './routes/RegisterPage';
+import { VerifyPage } from './routes/VerifyPage';
 import { WizardPage } from './routes/WizardPage';
 
 function useSession() {
@@ -71,6 +72,15 @@ export function App() {
       );
     }
 
+    if (location.pathname === '/verify') {
+      return (
+        <>
+          <DemoBanner />
+          <VerifyPage />
+        </>
+      );
+    }
+
     return location.pathname === '/login' ? (
       <>
         <DemoBanner />
@@ -89,6 +99,7 @@ export function App() {
         <Route path="/" element={<Navigate to="/folders" replace />} />
         <Route path="/login" element={<Navigate to="/folders" replace />} />
         <Route path="/register" element={<Navigate to="/folders" replace />} />
+        <Route path="/verify" element={<Navigate to="/folders" replace />} />
         <Route path="/folders" element={<FoldersPage />} />
         <Route path="/folders/:folderId" element={<AlarmsPage />} />
         <Route path="/folders/:folderId/alarms/new" element={<WizardPage mode="create" />} />

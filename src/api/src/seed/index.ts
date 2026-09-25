@@ -3,6 +3,7 @@ import { hashPassword } from '../auth/password.js';
 import { resetLoginAttempts } from '../auth/rateLimit.js';
 import { config } from '../config.js';
 import { withTransaction } from '../db/pool.js';
+import { clearCapturedMessages } from '../mail/mailer.js';
 import { SEED_ALARMS, SEED_FOLDERS } from './fixtures.js';
 import { SEED_USERS } from './users.js';
 
@@ -90,4 +91,5 @@ export async function seed(profile: SeedProfile = 'demo'): Promise<void> {
   // The limiter is in-process state, so a reset would otherwise leave a test
   // locked out of an account that has just been recreated.
   resetLoginAttempts();
+  clearCapturedMessages();
 }

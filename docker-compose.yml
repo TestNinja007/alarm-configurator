@@ -16,10 +16,29 @@ services:
       timeout: 3s
       retries: 20
 
+  # A local mail server. Registration emails go here and stay here: nothing
+  # leaves the machine, so the offline guarantee still holds under test.
+  # Its web UI and its API are on 8025, which is what a test reads to fetch a
+  # verification code.
+  mail:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
   app:
     build: .
     depends_on:
       db:
+        condition: service_healthy
+      mail:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://alarm_app:alarm_app@db:5432/alarm_configurator
@@ -29,6 +48,10 @@ services:
       SEED_ANCHOR: "2026-06-15T18:00:00Z"
       LIST_DELAY_MS: "600"
       SESSION_SECRET: docker-compose-development-session-secret
+      REGISTRATION_OPEN: "1"
+      MAIL_TRANSPORT: smtp
+      MAIL_HOST: mail
+      MAIL_PORT: "1025"
     ports:
       - "8080:8080"
 

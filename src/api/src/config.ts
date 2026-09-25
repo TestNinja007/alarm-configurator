@@ -78,6 +78,21 @@ export const config = {
     | 'never',
   seedProfile: (process.env.SEED_PROFILE ?? 'demo') as 'demo' | 'empty',
   sessionTtlDays: integer('SESSION_TTL_DAYS', 7),
+  /**
+   * Outbound email. `capture` is the default so a bare `npm start` needs no
+   * mail server; docker compose runs Mailpit and sets this to smtp.
+   */
+  mail: {
+    transport: (process.env.MAIL_TRANSPORT ?? 'capture') as 'smtp' | 'capture' | 'log',
+    host: process.env.MAIL_HOST ?? '127.0.0.1',
+    port: integer('MAIL_PORT', 1025),
+    secure: process.env.MAIL_SECURE === '1',
+    // Mailpit accepts plain SMTP; a provider on 587 will not.
+    ignoreTls: process.env.MAIL_IGNORE_TLS !== '0',
+    user: process.env.MAIL_USER,
+    password: process.env.MAIL_PASSWORD,
+    from: process.env.MAIL_FROM ?? 'Alarm Configurator <no-reply@alarm-configurator.test>',
+  },
   /** Directory holding the built SPA; absent during API-only development. */
   webDistDir: resolve(repoRoot, 'src', 'web', 'dist'),
   version: '0.1.0',
