@@ -1,7 +1,8 @@
+import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { Type } from '@sinclair/typebox';
 import { requireUser } from '../auth/guard.js';
-import { verifyPassword } from '../auth/password.js';
+import { hashPassword, verifyPassword } from '../auth/password.js';
 import {
   CSRF_COOKIE,
   SESSION_COOKIE,
@@ -9,13 +10,100 @@ import {
   createSession,
   destroySession,
 } from '../auth/sessions.js';
-import { queryOne } from '../db/pool.js';
-import { AppError, unauthenticated } from '../errors.js';
-import { LoginBodySchema, SessionSchema, type LoginBody } from '../schemas/auth.js';
+import { clock } from '../clock.js';
+import { config } from '../config.js';
+import { isUniqueViolation, query, queryOne } from '../db/pool.js';
+import { AppError, conflict, notFound, unauthenticated, validationError } from '../errors.js';
+import {
+  LoginBodySchema,
+  RegisterBodySchema,
+  SessionSchema,
+  type LoginBody,
+  type RegisterBody,
+} from '../schemas/auth.js';
 import { errorResponses } from '../schemas/common.js';
-import { consumeLoginAttempt, clearLoginAttempts } from '../auth/rateLimit.js';
+import { consumeLoginAttempt, clearLoginAttempts, consumeRegistration } from '../auth/rateLimit.js';
+
+
+/** Deliberately permissive: enough to reject obvious nonsense, not a parser. */
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@.]+\.[^\s@]+$/;
 
 export async function authRoutes(app: FastifyInstance): Promise<void> {
+  app.post<{ Body: RegisterBody }>(
+    '/auth/register',
+    {
+      schema: {
+        summary: 'Create an account and sign in',
+        description:
+          'Only available when REGISTRATION_OPEN=1. There is no address ' +
+          'verification and no password reset, because the application makes no ' +
+          'external network calls at runtime.',
+        tags: ['auth'],
+        body: RegisterBodySchema,
+        response: { 201: SessionSchema, ...errorResponses },
+      },
+    },
+    async (request, reply) => {
+      // Absent rather than refused when closed, so a probe cannot tell the
+      // difference between "switched off" and "does not exist".
+      if (!config.registrationOpen) throw notFound('Route');
+
+      const email = request.body.email.trim();
+      const name = request.body.name.trim();
+
+      if (!consumeRegistration(email)) {
+        throw new AppError('rate_limited', 'Too many sign-up attempts. Try again later.');
+      }
+
+      if (!EMAIL_PATTERN.test(email)) {
+        throw validationError([
+          { field: 'email', code: 'invalid_email', message: 'Enter a valid email address.' },
+        ]);
+      }
+
+      // A password that is merely the email address back again defeats the
+      // length floor without being caught by it.
+      if (request.body.password.toLowerCase().includes(email.toLowerCase())) {
+        throw validationError([
+          {
+            field: 'password',
+            code: 'too_similar',
+            message: 'The password must not contain your email address.',
+          },
+        ]);
+      }
+
+      const id = randomUUID();
+      const now = clock.now();
+
+      try {
+        await query(
+          `INSERT INTO users (id, email, name, password_hash, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $5)`,
+          [id, email, name, await hashPassword(request.body.password), now],
+        );
+      } catch (error) {
+        if (isUniqueViolation(error, 'users_email_lower_key')) {
+          throw conflict('That email address is already registered.', {
+            fields: [
+              { field: 'email', code: 'duplicate_email', message: 'This address already has an account.' },
+            ],
+          });
+        }
+        throw error;
+      }
+
+      // Registering signs you in; there is no second step to get wrong.
+      const session = await createSession(id);
+      reply
+        .setCookie(SESSION_COOKIE, session.id, { ...cookieOptions, httpOnly: true })
+        .setCookie(CSRF_COOKIE, session.csrfToken, { ...cookieOptions, httpOnly: false })
+        .status(201);
+
+      return { user: { id, email, name }, csrfToken: session.csrfToken };
+    },
+  );
+
   app.post<{ Body: LoginBody }>(
     '/auth/login',
     {

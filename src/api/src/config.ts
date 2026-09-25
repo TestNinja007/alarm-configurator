@@ -38,6 +38,12 @@ export const config = {
   port: integer('PORT', 8080),
   host: process.env.HOST ?? '0.0.0.0',
   /**
+   * Whether anyone may create an account. Off by default so the seeded-users
+   * baseline the test framework is written against stays unchanged; the public
+   * deployment turns it on.
+   */
+  registrationOpen: process.env.REGISTRATION_OPEN === '1',
+  /**
    * Shows the public-sandbox banner in the UI. Off by default, and deliberately
    * so: a permanent banner on every page would sit in the middle of whatever a
    * test framework is trying to assert against locally.
