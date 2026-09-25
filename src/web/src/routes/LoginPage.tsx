@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link, useNavigate } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
 import type { Session } from '../api/types';
 
@@ -9,6 +9,15 @@ export function LoginPage() {
   const queryClient = useQueryClient();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
+  // The server decides whether accounts can be created, so the link only
+  // appears where registration is actually open.
+  const health = useQuery({
+    queryKey: ['health'],
+    queryFn: () => api.get<{ registrationOpen: boolean }>('/health'),
+    staleTime: Number.POSITIVE_INFINITY,
+    retry: false,
+  });
 
   const login = useMutation({
     mutationFn: (credentials: { email: string; password: string }) =>
@@ -81,6 +90,15 @@ export function LoginPage() {
         >
           {login.isPending ? 'Signing in…' : 'Sign in'}
         </button>
+
+        {health.data?.registrationOpen ? (
+          <p className="form-footer">
+            No account yet?{' '}
+            <Link to="/register" data-testid="register-link">
+              Create one
+            </Link>
+          </p>
+        ) : null}
       </form>
     </main>
   );

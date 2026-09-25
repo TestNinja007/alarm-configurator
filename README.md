@@ -47,6 +47,7 @@ The deployed configuration differs from local in three ways, all deliberate:
 | `SEED_ON_START` | `if-empty` | Seeds on the first boot against an empty database, and never again, so a redeploy does not wipe it. |
 | `SESSION_SECRET` | generated | Production refuses to start on a short or missing secret. |
 | `DEMO_MODE` | `1` | Shows a banner saying the instance is a public sandbox with published credentials. Off locally, so it never sits in the way of a test run. |
+| `REGISTRATION_OPEN` | `1` | Anyone may create an account on the public instance. Closed everywhere else. |
 
 Session cookies are marked `Secure` whenever `NODE_ENV=production`, and the
 server trusts `X-Forwarded-*` so it sees the real protocol behind the platform's
@@ -71,6 +72,7 @@ returns 404, never 403.
 | `TEST_SUPPORT` | `0` | `1` mounts the `/api/v1/test/*` hooks. With any other value they are absent from the router and from the OpenAPI document. |
 | `SEED_ANCHOR` | `2026-06-15T18:00:00Z` | Every seeded date derives from this instant, so reseeding twice produces identical data. |
 | `DEMO_MODE` | `0` | `1` shows the public-sandbox banner on every page. The deployed instance sets it; leave it off locally. |
+| `REGISTRATION_OPEN` | `0` | `1` opens `POST /auth/register` and shows the sign-up link. Off locally, so the seeded-users baseline stays unchanged. |
 | `LIST_DELAY_MS` | `600` | Fixed delay in front of the alarm list so the A-01 skeleton is observable. Never random. Set `0` to remove it. |
 | `SESSION_SECRET` | — | Signs session cookies. |
 | `SEED_PROFILE` | `demo` | Which profile the container seeds at startup: `demo` or `empty`. |
@@ -100,6 +102,26 @@ can come to exist: create the second alarm disabled, then enable it. Without
 this gap the conflicts panel could never have anything to show, because every
 write path would have refused the state it is meant to display.
 
+### Registration
+
+Open only where `REGISTRATION_OPEN=1`; elsewhere the route is not mounted, so it
+returns 404 rather than an error that would confirm it exists.
+
+| Case | Response |
+| --- | --- |
+| Success | 201, the account is signed in immediately |
+| Password under 10 characters | 422 on `password` |
+| Password containing the email address | 422 on `password`, code `too_similar` |
+| Malformed email | 422 on `email` |
+| Address already registered, in any casing | 409 on `email`, code `duplicate_email` |
+| More than 5 attempts for one address in 15 minutes | 429 |
+
+Email comparison is case-insensitive and the name is trimmed, matching the rest
+of the application. There is **no address verification and no password reset**:
+the application makes no external network calls at runtime, so it cannot send
+email. An account whose password is forgotten is unrecoverable, which is stated
+on the form.
+
 ## Error shape
 
 Every non-2xx response uses one envelope:
@@ -114,6 +136,7 @@ Every non-2xx response uses one envelope:
 
 | Method | Path | Notes |
 | --- | --- | --- |
+| POST | `/auth/register` | Creates an account and signs it in. 404 unless `REGISTRATION_OPEN=1`. |
 | POST | `/auth/login`, `/auth/logout` | |
 | GET | `/auth/me` | Returns the user and the CSRF token. |
 | GET/POST | `/folders` | |

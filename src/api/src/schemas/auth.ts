@@ -37,3 +37,18 @@ export const UiStateSchema = Type.Object(
   }
 );
 export type UiState = Static<typeof UiStateSchema>;
+
+/**
+ * Registration. The password floor is length rather than a character-class
+ * rule: length is what actually resists guessing, and composition rules mostly
+ * teach people to write Password1!.
+ */
+export const RegisterBodySchema = Type.Object(
+  {
+    email: Type.String({ minLength: 3, maxLength: 254 }),
+    name: Type.String({ minLength: 1, maxLength: 80 }),
+    password: Type.String({ minLength: 10, maxLength: 200 }),
+  },
+  { additionalProperties: false },
+);
+export type RegisterBody = Static<typeof RegisterBodySchema>;

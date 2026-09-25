@@ -10,6 +10,7 @@ const HealthSchema = Type.Object({
   database: Type.Union([Type.Literal('up'), Type.Literal('down')]),
   testSupport: Type.Boolean(),
   demoMode: Type.Boolean(),
+  registrationOpen: Type.Boolean(),
   clock: Type.Object({
     mode: Type.Union([Type.Literal('system'), Type.Literal('fixed')]),
     now: Type.String({ format: 'date-time' }),
@@ -45,6 +46,7 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
         database,
         testSupport: config.testSupport,
         demoMode: config.demoMode,
+        registrationOpen: config.registrationOpen,
         clock: clock.describe(),
       };
     },
