@@ -5,7 +5,10 @@ services:
     name: alarm-configurator
     runtime: node
     plan: free
-    buildCommand: npm ci && npm run build
+    # --include=dev is required: NODE_ENV=production is set below, and npm ci
+    # honours it by skipping devDependencies — which is where Vite and the
+    # TypeScript toolchain live, so the build would have nothing to build with.
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start --workspace @alarm/api
     healthCheckPath: /api/v1/health
     envVars:
