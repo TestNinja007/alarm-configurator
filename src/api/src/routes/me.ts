@@ -1,14 +1,14 @@
 import type { FastifyInstance } from 'fastify';
 import { Type } from '@sinclair/typebox';
 import { requireUser } from '../auth/guard.js';
-import { verifyPassword } from '../auth/password.js';
+import { hashPassword, verifyPassword } from '../auth/password.js';
 import {
   CSRF_COOKIE,
   SESSION_COOKIE,
 } from '../auth/sessions.js';
 import { clock } from '../clock.js';
 import { query, queryOne } from '../db/pool.js';
-import { conflict, notFound, unauthenticated } from '../errors.js';
+import { conflict, notFound, unauthenticated, validationError } from '../errors.js';
 import { UiStateSchema } from '../schemas/auth.js';
 import { UuidSchema, errorResponses } from '../schemas/common.js';
 
@@ -66,6 +66,25 @@ interface UiStateRow {
   updated_at: Date;
 }
 
+const UpdateProfileBodySchema = Type.Object(
+  { name: Type.String({ minLength: 1, maxLength: 80 }) },
+  { additionalProperties: false },
+);
+
+const ChangePasswordBodySchema = Type.Object(
+  {
+    currentPassword: Type.String({ minLength: 1, maxLength: 200 }),
+    newPassword: Type.String({ minLength: 10, maxLength: 200 }),
+  },
+  { additionalProperties: false },
+);
+
+const ProfileSchema = Type.Object({
+  id: UuidSchema,
+  email: Type.String(),
+  name: Type.String(),
+});
+
 const DeleteAccountBodySchema = Type.Object(
   { password: Type.String({ minLength: 1, maxLength: 200 }) },
   { additionalProperties: false },
@@ -77,6 +96,106 @@ const DeleteAccountQuerySchema = Type.Object({
 
 export async function meRoutes(app: FastifyInstance): Promise<void> {
   app.addHook('preHandler', requireUser);
+
+
+  app.patch<{ Body: { name: string } }>(
+    '/me/profile',
+    {
+      schema: {
+        summary: 'Change the display name',
+        tags: ['auth'],
+        body: UpdateProfileBodySchema,
+        response: { 200: ProfileSchema, ...errorResponses },
+      },
+    },
+    async (request) => {
+      const name = request.body.name.trim();
+      if (name.length === 0) {
+        throw validationError([
+          { field: 'name', code: 'required', message: 'Enter a name.' },
+        ]);
+      }
+
+      const row = await queryOne<{ id: string; email: string; name: string }>(
+        `UPDATE users SET name = $1, updated_at = $2 WHERE id = $3
+         RETURNING id, email, name`,
+        [name, clock.now(), request.user!.id],
+      );
+      if (!row) throw notFound('Account');
+      return row;
+    },
+  );
+
+  app.put<{ Body: { currentPassword: string; newPassword: string } }>(
+    '/me/password',
+    {
+      schema: {
+        summary: 'Change the password while signed in',
+        description:
+          'Requires the current password. Every other session is ended; this one ' +
+          'survives, so the caller is not signed out of the device they are using.',
+        tags: ['auth'],
+        body: ChangePasswordBodySchema,
+        response: { 204: Type.Null(), ...errorResponses },
+      },
+    },
+    async (request, reply) => {
+      const userId = request.user!.id;
+
+      const row = await queryOne<{ password_hash: string; email: string }>(
+        'SELECT password_hash, email FROM users WHERE id = $1',
+        [userId],
+      );
+      if (!row) throw notFound('Account');
+
+      if (!(await verifyPassword(request.body.currentPassword, row.password_hash))) {
+        throw validationError([
+          {
+            field: 'currentPassword',
+            code: 'incorrect',
+            message: 'That is not your current password.',
+          },
+        ]);
+      }
+
+      if (request.body.newPassword === request.body.currentPassword) {
+        throw validationError([
+          {
+            field: 'newPassword',
+            code: 'unchanged',
+            message: 'The new password must be different from the current one.',
+          },
+        ]);
+      }
+
+      // The same rule registration and reset apply, so it cannot be sidestepped here.
+      if (request.body.newPassword.toLowerCase().includes(row.email.toLowerCase())) {
+        throw validationError([
+          {
+            field: 'newPassword',
+            code: 'too_similar',
+            message: 'The password must not contain your email address.',
+          },
+        ]);
+      }
+
+      await query('UPDATE users SET password_hash = $1, updated_at = $2 WHERE id = $3', [
+        await hashPassword(request.body.newPassword),
+        clock.now(),
+        userId,
+      ]);
+
+      // Other devices are signed out, but not this one: the person changing
+      // their password on purpose should not be thrown out for doing so.
+      await query('DELETE FROM sessions WHERE user_id = $1 AND id <> $2', [
+        userId,
+        request.session!.id,
+      ]);
+
+      reply.status(204);
+      return null;
+    },
+  );
 
   app.delete<{ Body: { password: string }; Querystring: { confirm?: 'true' | 'false' } }>(
     '/me',

@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { ApiError, api } from './api/client';
 import type { Session } from './api/types';
 import { DemoBanner } from './components/DemoBanner';
 import { AlarmsPage } from './routes/AlarmsPage';
 import { FoldersPage } from './routes/FoldersPage';
 import { LoginPage } from './routes/LoginPage';
+import { SettingsPage } from './routes/SettingsPage';
 import { ForgotPasswordPage } from './routes/ForgotPasswordPage';
 import { RegisterPage } from './routes/RegisterPage';
 import { ResetPasswordPage } from './routes/ResetPasswordPage';
@@ -39,6 +40,9 @@ function TopBar({ session }: { session: Session }) {
       <span className="topbar-brand">Alarm Configurator</span>
       <div className="topbar-user">
         <span data-testid="topbar-user-name">{session.user.name}</span>
+        <Link className="button" to="/settings" data-testid="settings-link">
+          Settings
+        </Link>
         <button
           type="button"
           className="button"
@@ -123,6 +127,7 @@ export function App() {
         <Route path="/forgot-password" element={<Navigate to="/folders" replace />} />
         <Route path="/reset-password" element={<Navigate to="/folders" replace />} />
         <Route path="/folders" element={<FoldersPage />} />
+        <Route path="/settings" element={<SettingsPage user={session.data.user} />} />
         <Route path="/folders/:folderId" element={<AlarmsPage />} />
         <Route path="/folders/:folderId/alarms/new" element={<WizardPage mode="create" />} />
         <Route path="/alarms/:alarmId/edit" element={<WizardPage mode="edit" />} />
