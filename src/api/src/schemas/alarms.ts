@@ -28,6 +28,8 @@ export const AlarmSchema = Type.Object(
     endDate: Type.Union([DateOnlySchema, Type.Null()]),
     endTime: Type.Union([TimeOfDaySchema, Type.Null()]),
     endAfterOccurrences: Type.Union([Type.Integer(), Type.Null()]),
+    speechText: Type.Union([Type.String(), Type.Null()]),
+    speechVoice: Type.Union([Type.Literal('male'), Type.Literal('female'), Type.Null()]),
     endTimeOfDay: Type.Union([TimeOfDaySchema, Type.Null()]),
     repeatEvery: Type.Union([Type.Integer(), Type.Null()]),
     repeatUnit: Type.Union([
@@ -53,6 +55,15 @@ const scheduleProperties = {
   endTime: Type.Optional(Type.Union([TimeOfDaySchema, Type.Null()])),
   endAfterOccurrences: Type.Optional(
     Type.Union([Type.Integer({ minimum: 1, maximum: 1000 }), Type.Null()]),
+  ),
+  /**
+   * Spoken aloud when the alarm fires, by the browser's own speech
+   * synthesis. The voice is a preference rather than a named voice, because
+   * the voices installed differ from one machine to the next.
+   */
+  speechText: Type.Optional(Type.Union([Type.String({ maxLength: 200 }), Type.Null()])),
+  speechVoice: Type.Optional(
+    Type.Union([Type.Literal('male'), Type.Literal('female'), Type.Null()]),
   ),
   /**
    * Repeating within each selected day: the rule picks the days, these pick
@@ -189,6 +200,8 @@ export const UpcomingOccurrenceSchema = Type.Object({
   folderName: Type.String(),
   timezone: Type.String(),
   note: Type.Union([Type.String(), Type.Null()]),
+  speechText: Type.Union([Type.String(), Type.Null()]),
+  speechVoice: Type.Union([Type.Literal('male'), Type.Literal('female'), Type.Null()]),
   utc: Type.String(),
   local: Type.String(),
 });

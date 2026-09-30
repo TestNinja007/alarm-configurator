@@ -27,6 +27,8 @@ export interface ScheduleInput {
   endDate?: string | null;
   endTime?: string | null;
   endAfterOccurrences?: number | null;
+  speechText?: string | null;
+  speechVoice?: 'male' | 'female' | null;
   endTimeOfDay?: string | null;
   repeatEvery?: number | null;
   repeatUnit?: 'seconds' | 'minutes' | 'hours' | null;
@@ -93,6 +95,23 @@ export function validateSchedule(input: ScheduleInput): { timezone: string } {
       field: 'endAfterOccurrences',
       code: 'mutually_exclusive',
       message: 'Set either endDate or endAfterOccurrences, not both.',
+    });
+  }
+
+  // A voice with nothing to say is meaningless.
+  if (input.speechVoice != null && !input.speechText?.trim()) {
+    fields.push({
+      field: 'speechText',
+      code: 'needs_text',
+      message: 'Write what the alarm should say, or clear the voice.',
+    });
+  }
+
+  if (input.speechText != null && input.speechText.trim().length === 0) {
+    fields.push({
+      field: 'speechText',
+      code: 'blank',
+      message: 'Write something to say, or leave it empty entirely.',
     });
   }
 

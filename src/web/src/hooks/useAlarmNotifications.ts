@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
+import { speak } from '../lib/speech';
 import type { UpcomingList, UpcomingOccurrence } from '../api/types';
 
 /**
@@ -98,6 +99,12 @@ export function useAlarmNotifications() {
     fired.current.add(key);
     saveFired(fired.current);
     setLastFired(key);
+
+    // Spoken as well as shown, when the alarm carries a message. The
+    // notification goes first: it is the thing that must not be missed.
+    if (occurrence.speechText) {
+      speak(occurrence.speechText, occurrence.speechVoice ?? 'female');
+    }
 
     try {
       const notification = new Notification(occurrence.alarmName, {

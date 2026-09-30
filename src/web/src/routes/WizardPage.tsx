@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
@@ -10,6 +10,14 @@ import {
   type Weekday,
 } from '../api/types';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import {
+  SPEECH_MAX_LENGTH,
+  resolveVoice,
+  speak,
+  speechSupported,
+  subscribeToVoices,
+  voicesSnapshot,
+} from '../lib/speech';
 import { OccurrencePreview } from '../components/OccurrencePreview';
 import { useToast } from '../components/Toaster';
 
@@ -29,6 +37,8 @@ interface WizardForm {
   folderId: string;
   name: string;
   note: string;
+  speechText: string;
+  speechVoice: 'male' | 'female';
   timeOfDay: string;
   timezone: string;
   startDate: string;
@@ -48,6 +58,8 @@ function emptyForm(folderId: string): WizardForm {
     folderId,
     name: '',
     note: '',
+    speechText: '',
+    speechVoice: 'female',
     timeOfDay: '07:00',
     timezone: 'America/Toronto',
     startDate: new Date().toISOString().slice(0, 10),
@@ -68,6 +80,8 @@ function formFromAlarm(alarm: Alarm): WizardForm {
     folderId: alarm.folderId,
     name: alarm.name,
     note: alarm.note ?? '',
+    speechText: alarm.speechText ?? '',
+    speechVoice: alarm.speechVoice ?? 'female',
     timeOfDay: alarm.timeOfDay,
     timezone: alarm.timezone,
     startDate: alarm.startDate,
@@ -89,6 +103,8 @@ function toPayload(form: WizardForm) {
     folderId: form.folderId,
     name: form.name.trim(),
     note: form.note.trim() ? form.note.trim() : null,
+    speechText: form.speechText.trim() ? form.speechText.trim() : null,
+    speechVoice: form.speechText.trim() ? form.speechVoice : null,
     timeOfDay: form.timeOfDay,
     timezone: form.timezone,
     startDate: form.startDate,
@@ -119,6 +135,8 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
   /** What the alarm looked like when it loaded, so an edit knows if it changed. */
   const [original, setOriginal] = useState<WizardForm | undefined>();
   const [confirmingCancel, setConfirmingCancel] = useState(false);
+  // Re-renders once the browser has finished loading its voices.
+  useSyncExternalStore(subscribeToVoices, voicesSnapshot, () => '');
   /** Set when Next is pressed with something missing on the current step. */
   const [stepErrors, setStepErrors] = useState<Record<string, string>>({});
 
@@ -319,6 +337,82 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
                 data-testid="alarm-note-input"
               />
             </div>
+
+            <fieldset className="fieldset" data-testid="alarm-speech-fieldset">
+              <legend>Say something when it fires</legend>
+
+              <div className="field">
+                <label htmlFor="alarm-speech-text">Spoken message (optional)</label>
+                <input
+                  id="alarm-speech-text"
+                  value={form.speechText}
+                  maxLength={SPEECH_MAX_LENGTH}
+                  onChange={(event) => update({ speechText: event.target.value })}
+                  aria-invalid={fieldError('speechText') ? true : undefined}
+                  aria-describedby={
+                    fieldError('speechText') ? 'alarm-speech-error' : 'alarm-speech-hint'
+                  }
+                  data-testid="alarm-speech-text-input"
+                />
+                {fieldError('speechText') ? (
+                  <p
+                    id="alarm-speech-error"
+                    className="field-error"
+                    data-testid="alarm-speech-error"
+                  >
+                    {fieldError('speechText')}
+                  </p>
+                ) : (
+                  <p id="alarm-speech-hint" className="field-hint" data-testid="alarm-speech-hint">
+                    {form.speechText.length}/{SPEECH_MAX_LENGTH} characters. Read aloud by your
+                    browser when the alarm fires, while the app is open.
+                  </p>
+                )}
+              </div>
+
+              {form.speechText.trim() ? (
+                <>
+                  <div className="field">
+                    <label htmlFor="alarm-speech-voice">Voice</label>
+                    <select
+                      id="alarm-speech-voice"
+                      value={form.speechVoice}
+                      onChange={(event) =>
+                        update({ speechVoice: event.target.value as 'male' | 'female' })
+                      }
+                      data-testid="alarm-speech-voice-select"
+                    >
+                      <option value="female">Female</option>
+                      <option value="male">Male</option>
+                    </select>
+                  </div>
+
+                  <div className="notification-actions">
+                    <button
+                      type="button"
+                      className="button"
+                      onClick={() => speak(form.speechText, form.speechVoice)}
+                      disabled={!speechSupported()}
+                      data-testid="alarm-speech-preview-button"
+                    >
+                      Hear it
+                    </button>
+                  </div>
+
+                  {/*
+                    Voices belong to the operating system and differ between
+                    machines, and none of them declares a gender, so the
+                    preference is matched against the names installed here. The
+                    one that will actually be used is named rather than assumed.
+                  */}
+                  <p className="field-hint" data-testid="alarm-speech-resolved-voice">
+                    {speechSupported()
+                      ? `On this computer that is ${resolveVoice(form.speechVoice)?.name ?? 'whichever voice is available'}. Another computer may use a different one.`
+                      : 'This browser cannot speak, so the message will not be read aloud here.'}
+                  </p>
+                </>
+              ) : null}
+            </fieldset>
           </>
         ) : null}
 
@@ -481,6 +575,14 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
                     ? form.endDate || '—'
                     : `After ${form.endAfterOccurrences || '—'} occurrences`}
               </dd>
+              {form.speechText.trim() ? (
+                <>
+                  <dt>Says</dt>
+                  <dd data-testid="review-speech">
+                    “{form.speechText.trim()}”, in a {form.speechVoice} voice
+                  </dd>
+                </>
+              ) : null}
               <dt>Repeats</dt>
               <dd data-testid="review-rule">{describeRule(form.rule)}</dd>
               {form.repeatWithinDay ? (

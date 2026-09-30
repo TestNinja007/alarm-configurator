@@ -14,6 +14,8 @@ export interface AlarmRow {
   end_date: string | null;
   end_time: string | null;
   end_after_occurrences: number | null;
+  speech_text: string | null;
+  speech_voice: 'male' | 'female' | null;
   end_time_of_day: string | null;
   repeat_every: number | null;
   repeat_unit: 'seconds' | 'minutes' | 'hours' | null;
@@ -44,6 +46,8 @@ export function toAlarm(row: AlarmRow): Alarm {
     endDate: row.end_date,
     endTime: row.end_time,
     endAfterOccurrences: row.end_after_occurrences,
+    speechText: row.speech_text,
+    speechVoice: row.speech_voice,
     endTimeOfDay: row.end_time_of_day,
     repeatEvery: row.repeat_every,
     repeatUnit: row.repeat_unit,
