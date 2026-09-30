@@ -13,6 +13,9 @@ export interface AlarmRow {
   start_date: string;
   end_date: string | null;
   end_after_occurrences: number | null;
+  end_time_of_day: string | null;
+  repeat_every: number | null;
+  repeat_unit: 'minutes' | 'hours' | null;
   rule: Rule;
   created_at: Date;
   updated_at: Date;
@@ -39,6 +42,9 @@ export function toAlarm(row: AlarmRow): Alarm {
     startDate: row.start_date,
     endDate: row.end_date,
     endAfterOccurrences: row.end_after_occurrences,
+    endTimeOfDay: row.end_time_of_day,
+    repeatEvery: row.repeat_every,
+    repeatUnit: row.repeat_unit,
     rule: row.rule,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),

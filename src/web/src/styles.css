@@ -173,6 +173,12 @@ a:focus-visible {
   border-color: var(--danger);
 }
 
+.rule-window {
+  display: block;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 .password-input {
   display: flex;
   gap: 6px;

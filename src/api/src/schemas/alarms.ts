@@ -27,6 +27,9 @@ export const AlarmSchema = Type.Object(
     startDate: DateOnlySchema,
     endDate: Type.Union([DateOnlySchema, Type.Null()]),
     endAfterOccurrences: Type.Union([Type.Integer(), Type.Null()]),
+    endTimeOfDay: Type.Union([TimeOfDaySchema, Type.Null()]),
+    repeatEvery: Type.Union([Type.Integer(), Type.Null()]),
+    repeatUnit: Type.Union([Type.Literal('minutes'), Type.Literal('hours'), Type.Null()]),
     rule: RuleSchema,
     createdAt: TimestampSchema,
     updatedAt: TimestampSchema,
@@ -42,6 +45,17 @@ const scheduleProperties = {
   endDate: Type.Optional(Type.Union([DateOnlySchema, Type.Null()])),
   endAfterOccurrences: Type.Optional(
     Type.Union([Type.Integer({ minimum: 1, maximum: 1000 }), Type.Null()]),
+  ),
+  /**
+   * Repeating within each selected day: the rule picks the days, these pick
+   * the times on them. All three together or none.
+   *
+   * endTimeOfDay closes the window each day; endDate ends the series.
+   */
+  endTimeOfDay: Type.Optional(Type.Union([TimeOfDaySchema, Type.Null()])),
+  repeatEvery: Type.Optional(Type.Union([Type.Integer({ minimum: 1, maximum: 1440 }), Type.Null()])),
+  repeatUnit: Type.Optional(
+    Type.Union([Type.Literal('minutes'), Type.Literal('hours'), Type.Null()]),
   ),
   rule: RuleSchema,
 };

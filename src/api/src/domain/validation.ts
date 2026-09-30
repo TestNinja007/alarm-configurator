@@ -8,6 +8,12 @@ export function isValidTimezone(timezone: string): boolean {
   return DateTime.local().setZone(timezone).isValid;
 }
 
+/** Minutes since midnight, from an HH:mm string. */
+function toMinutes(timeOfDay: string): number {
+  const [hour, minute] = timeOfDay.split(':');
+  return Number.parseInt(hour ?? '', 10) * 60 + Number.parseInt(minute ?? '', 10);
+}
+
 /** True when the string is a real calendar date, not merely YYYY-MM-DD shaped. */
 export function isRealDate(value: string): boolean {
   return DateTime.fromISO(value, { zone: 'utc' }).isValid;
@@ -19,6 +25,9 @@ export interface ScheduleInput {
   startDate: string;
   endDate?: string | null;
   endAfterOccurrences?: number | null;
+  endTimeOfDay?: string | null;
+  repeatEvery?: number | null;
+  repeatUnit?: 'minutes' | 'hours' | null;
 }
 
 /**
@@ -74,6 +83,34 @@ export function validateSchedule(input: ScheduleInput): { timezone: string } {
       code: 'mutually_exclusive',
       message: 'Set either endDate or endAfterOccurrences, not both.',
     });
+  }
+
+  // The within-day window: three fields that only mean anything together.
+  const windowParts = [input.endTimeOfDay, input.repeatEvery, input.repeatUnit];
+  const supplied = windowParts.filter((part) => part !== undefined && part !== null).length;
+
+  if (supplied > 0 && supplied < windowParts.length) {
+    fields.push({
+      field: 'repeatEvery',
+      code: 'incomplete_window',
+      message:
+        'To repeat within a day, give all of endTimeOfDay, repeatEvery and repeatUnit.',
+    });
+  }
+
+  if (supplied === windowParts.length && input.endTimeOfDay) {
+    const start = toMinutes(input.timeOfDay);
+    const end = toMinutes(input.endTimeOfDay);
+
+    if (end <= start) {
+      // The window does not wrap past midnight: one that did would make it
+      // ambiguous which day an occurrence belonged to.
+      fields.push({
+        field: 'endTimeOfDay',
+        code: 'not_after_start',
+        message: 'The end of the window must be later in the day than the start.',
+      });
+    }
   }
 
   if (fields.length > 0) throw validationError(fields);

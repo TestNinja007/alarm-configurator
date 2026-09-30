@@ -31,6 +31,16 @@ export interface ScheduleSpec {
   endDate?: string | null;
   endAfterOccurrences?: number | null;
   rule: Rule;
+  /**
+   * Repeating within each selected day. The rule decides which days; these
+   * decide which times on those days. All three travel together or none does.
+   *
+   * `endTimeOfDay` closes the window each day and is a different thing from
+   * `endDate`, which ends the series.
+   */
+  endTimeOfDay?: string | null;
+  repeatEvery?: number | null;
+  repeatUnit?: 'minutes' | 'hours' | null;
 }
 
 export interface OccurrenceWindow {
@@ -64,20 +74,59 @@ function parseLocalDate(date: string, zone: string): DateTime {
   return DateTime.fromISO(date, { zone });
 }
 
+/** Minutes since midnight, from an HH:mm string. */
+function minutesOfDay(timeOfDay: string): number {
+  const [rawHour, rawMinute] = timeOfDay.split(':');
+  return Number.parseInt(rawHour ?? '', 10) * 60 + Number.parseInt(rawMinute ?? '', 10);
+}
+
 /**
- * Turns a local calendar date plus the alarm's wall-clock time into an instant.
+ * Turns a local calendar date plus a wall-clock minute-of-day into an instant.
  * This is the single place where R-06 and R-07 take effect.
  */
-function resolveInstant(date: DateTime, timeOfDay: string, zone: string): DateTime {
-  const [rawHour, rawMinute] = timeOfDay.split(':');
-  const hour = Number.parseInt(rawHour ?? '', 10);
-  const minute = Number.parseInt(rawMinute ?? '', 10);
-
+function resolveInstant(date: DateTime, minuteOfDay: number, zone: string): DateTime {
   return DateTime.fromObject(
-    { year: date.year, month: date.month, day: date.day, hour, minute },
+    {
+      year: date.year,
+      month: date.month,
+      day: date.day,
+      hour: Math.floor(minuteOfDay / 60),
+      minute: minuteOfDay % 60,
+    },
     { zone },
   );
 }
+
+/**
+ * The wall-clock minutes an alarm fires at on any day it falls on.
+ *
+ * Without a window that is just the one time. With one it walks from the start
+ * to the end inclusive, so 09:00 to 09:10 every 5 minutes gives 09:00, 09:05
+ * and 09:10.
+ *
+ * These are wall-clock times, resolved to instants individually, so a spring
+ * forward moves the affected occurrences by R-06 rather than sliding the whole
+ * window. A window that spans the gap simply has fewer distinct instants that
+ * day, which is what "between 09:00 and 17:00 local" ought to mean.
+ */
+function minutesWithinDay(spec: ScheduleSpec): number[] {
+  const start = minutesOfDay(spec.timeOfDay);
+
+  if (!spec.endTimeOfDay || !spec.repeatEvery || !spec.repeatUnit) return [start];
+
+  const end = minutesOfDay(spec.endTimeOfDay);
+  const step = spec.repeatUnit === 'hours' ? spec.repeatEvery * 60 : spec.repeatEvery;
+  if (step <= 0 || end < start) return [start];
+
+  const minutes: number[] = [];
+  for (let at = start; at <= end && minutes.length <= MAX_PER_DAY; at += step) {
+    minutes.push(at);
+  }
+  return minutes;
+}
+
+/** One a minute for a full day, which the database constraint also enforces. */
+const MAX_PER_DAY = 1440;
 
 /** Candidate local dates for the rule, ascending, starting at startDate. */
 function* candidateDates(spec: ScheduleSpec): Generator<DateTime> {
@@ -203,22 +252,58 @@ export function occurrencesFor(spec: ScheduleSpec, window: OccurrenceWindow): Oc
   const results: Occurrence[] = [];
   let produced = 0;
 
+  const minutes = minutesWithinDay(spec);
+
   for (const date of candidateDates(spec)) {
     // R-04's end condition: an endDate stops the rule, inclusive of that day.
     if (endDate && date > endDate) break;
     if (maxCount !== undefined && produced >= maxCount) break;
 
-    const instant = resolveInstant(date, spec.timeOfDay, zone);
-    if (!instant.isValid) continue;
+    /*
+     * The day's instants are collected, de-duplicated and sorted before any
+     * of them is emitted.
+     *
+     * A spring-forward gap folds several wall-clock times onto one instant:
+     * with a window of 01:30 to 03:30 on 8 March in Toronto, 02:00 and 03:00
+     * both resolve to 07:00Z, and 02:30 and 03:30 both to 07:30Z. The
+     * duplicates are not adjacent, so comparing against the previous value
+     * would miss them — and resolving in wall-clock order does not produce
+     * instants in ascending order either.
+     */
+    const seen = new Set<number>();
+    const dayInstants: DateTime[] = [];
 
-    produced += 1;
+    for (const minuteOfDay of minutes) {
+      const instant = resolveInstant(date, minuteOfDay, zone);
+      if (!instant.isValid) continue;
 
-    const millis = instant.toMillis();
-    if (millis > toMillis) break;
-    if (millis < fromMillis) continue;
+      const millis = instant.toMillis();
+      if (seen.has(millis)) continue;
+      seen.add(millis);
+      dayInstants.push(instant);
+    }
 
-    results.push(formatOccurrence(instant));
-    if (results.length >= window.limit) break;
+    dayInstants.sort((left, right) => left.toMillis() - right.toMillis());
+
+    let pastWindow = false;
+
+    for (const instant of dayInstants) {
+      if (maxCount !== undefined && produced >= maxCount) break;
+
+      produced += 1;
+
+      const millis = instant.toMillis();
+      if (millis > toMillis) {
+        pastWindow = true;
+        break;
+      }
+      if (millis < fromMillis) continue;
+
+      results.push(formatOccurrence(instant));
+      if (results.length >= window.limit) break;
+    }
+
+    if (pastWindow || results.length >= window.limit) break;
   }
 
   return results;
@@ -238,8 +323,6 @@ export function collidingInstants(
   b: ScheduleSpec,
   window: { from: Date; to: Date },
 ): string[] {
-  // The limit is only a safety valve; a daily alarm yields at most ~90 entries
-  // across the 90-day window the rule cares about.
   const options = { ...window, limit: MAX_OCCURRENCES_PER_COMPARISON };
   const first = new Set(occurrencesFor(a, options).map((occurrence) => occurrence.utc));
   if (first.size === 0) return [];
@@ -249,4 +332,13 @@ export function collidingInstants(
     .filter((utc) => first.has(utc));
 }
 
-const MAX_OCCURRENCES_PER_COMPARISON = 1000;
+/**
+ * High enough to cover the densest schedule across the whole conflict window:
+ * one a minute for ninety days is 129,600 occurrences.
+ *
+ * It used to be 1,000, which was ample when an alarm fired once a day but
+ * silently truncated a minute-by-minute one after seventeen hours — so R-08
+ * would have declared two colliding alarms compatible simply because it never
+ * looked far enough ahead.
+ */
+const MAX_OCCURRENCES_PER_COMPARISON = 150_000;

@@ -327,3 +327,128 @@ describe('R-08 collisions', () => {
     ).toEqual(['2026-03-08T07:30:00Z']);
   });
 });
+
+describe('repeating within a day', () => {
+  it('walks from the start time to the end time inclusive', () => {
+    const result = occurrencesFor(
+      spec({
+        timeOfDay: '09:00',
+        endTimeOfDay: '09:10',
+        repeatEvery: 5,
+        repeatUnit: 'minutes',
+        startDate: '2026-06-01',
+        rule: { type: 'once' },
+      }),
+      { limit: 10 },
+    );
+
+    expect(local(result)).toEqual([
+      '2026-06-01T09:00:00-04:00',
+      '2026-06-01T09:05:00-04:00',
+      '2026-06-01T09:10:00-04:00',
+    ]);
+  });
+
+  it('stops before the end when the step overshoots it', () => {
+    const result = occurrencesFor(
+      spec({
+        timeOfDay: '09:00',
+        endTimeOfDay: '09:12',
+        repeatEvery: 5,
+        repeatUnit: 'minutes',
+        startDate: '2026-06-01',
+        rule: { type: 'once' },
+      }),
+      { limit: 10 },
+    );
+
+    // 09:15 would be past the window, so the last one is 09:10.
+    expect(local(result).at(-1)).toBe('2026-06-01T09:10:00-04:00');
+    expect(result).toHaveLength(3);
+  });
+
+  it('repeats the window on every day the rule selects', () => {
+    const result = occurrencesFor(
+      spec({
+        timeOfDay: '08:00',
+        endTimeOfDay: '09:00',
+        repeatEvery: 1,
+        repeatUnit: 'hours',
+        startDate: '2026-06-01',
+        rule: { type: 'weekly', byWeekday: ['MO', 'TU'] },
+      }),
+      { limit: 6 },
+    );
+
+    // Monday 1 June and Tuesday 2 June, twice each.
+    expect(local(result)).toEqual([
+      '2026-06-01T08:00:00-04:00',
+      '2026-06-01T09:00:00-04:00',
+      '2026-06-02T08:00:00-04:00',
+      '2026-06-02T09:00:00-04:00',
+      '2026-06-08T08:00:00-04:00',
+      '2026-06-08T09:00:00-04:00',
+    ]);
+  });
+
+  it('counts each occurrence towards endAfterOccurrences, not each day', () => {
+    const result = occurrencesFor(
+      spec({
+        timeOfDay: '09:00',
+        endTimeOfDay: '09:30',
+        repeatEvery: 10,
+        repeatUnit: 'minutes',
+        startDate: '2026-06-01',
+        endAfterOccurrences: 5,
+        rule: { type: 'daily' },
+      }),
+      { limit: 20 },
+    );
+
+    // Four on the first day, then one on the second: five in total.
+    expect(local(result)).toEqual([
+      '2026-06-01T09:00:00-04:00',
+      '2026-06-01T09:10:00-04:00',
+      '2026-06-01T09:20:00-04:00',
+      '2026-06-01T09:30:00-04:00',
+      '2026-06-02T09:00:00-04:00',
+    ]);
+  });
+
+  it('does not report one instant twice when a spring-forward folds the window', () => {
+    // Toronto jumps 02:00 to 03:00 on 8 March 2026. A window of 01:30 to 03:30
+    // every 30 minutes would otherwise produce 02:00, 02:30 and 03:00 all
+    // landing on the same instant.
+    const result = occurrencesFor(
+      spec({
+        timeOfDay: '01:30',
+        endTimeOfDay: '03:30',
+        repeatEvery: 30,
+        repeatUnit: 'minutes',
+        startDate: '2026-03-08',
+        rule: { type: 'once' },
+      }),
+      { limit: 20 },
+    );
+
+    expect(utc(result)).toEqual([...new Set(utc(result))]);
+    expect(utc(result)).toEqual([
+      '2026-03-08T06:30:00Z',
+      '2026-03-08T07:00:00Z',
+      '2026-03-08T07:30:00Z',
+    ]);
+  });
+
+  it('leaves an alarm without a window exactly as it was', () => {
+    const plain = occurrencesFor(
+      spec({ timeOfDay: '09:30', startDate: '2026-06-01', rule: { type: 'daily' } }),
+      { limit: 3 },
+    );
+
+    expect(local(plain)).toEqual([
+      '2026-06-01T09:30:00-04:00',
+      '2026-06-02T09:30:00-04:00',
+      '2026-06-03T09:30:00-04:00',
+    ]);
+  });
+});

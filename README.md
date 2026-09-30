@@ -98,6 +98,36 @@ returns 404, never 403.
 | R-11 | `timeOfDay` must be `HH:mm`, 00:00 to 23:59. `24:00` is rejected. | done |
 | R-12 | `timezone` must be a valid IANA name; anything else is 422. | done |
 
+### Repeating within a day
+
+The `rule` decides which **days** an alarm falls on. Three optional fields decide
+which **times** on each of those days:
+
+| Field | Meaning |
+| --- | --- |
+| `endTimeOfDay` | Closes the window each day. Not the same as `endDate`, which ends the series. |
+| `repeatEvery` | 1 to 1440. |
+| `repeatUnit` | `minutes` or `hours`. |
+
+All three arrive together or none does; a partial set is 422 on `repeatEvery`.
+`endTimeOfDay` must be later in the day than `timeOfDay` — the window does not
+wrap past midnight, because one that did would make it ambiguous which day an
+occurrence belonged to.
+
+It composes with every rule type, so "every 15 minutes between 09:00 and 17:00
+on weekdays" is a weekly rule plus a window. The walk is inclusive of both ends:
+09:00 to 09:10 every 5 minutes gives 09:00, 09:05 and 09:10. A step that would
+overshoot simply stops early.
+
+Occurrences inside a window still obey R-06 and R-07, resolved one at a time
+rather than sliding the window as a block. That means a spring-forward can fold
+two wall-clock times onto one instant — 02:00 and 03:00 are both `07:00Z` in
+Toronto on 8 March — so each day's instants are de-duplicated and sorted before
+any is returned. An alarm never reports the same instant twice.
+
+Every occurrence counts individually towards `endAfterOccurrences`, not one per
+day.
+
 ### Conflicts, and why enabling is special
 
 R-08 refuses to *create or update* an alarm into a collision. Enabling an alarm
