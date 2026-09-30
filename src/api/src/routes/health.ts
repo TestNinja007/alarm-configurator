@@ -3,7 +3,7 @@ import { Type } from '@sinclair/typebox';
 import { clock } from '../clock.js';
 import { config } from '../config.js';
 import { pool } from '../db/pool.js';
-import { mailReachable } from '../mail/mailer.js';
+import { mailError, mailReachable } from '../mail/mailer.js';
 
 const HealthSchema = Type.Object({
   status: Type.Union([Type.Literal('ok'), Type.Literal('degraded')]),
@@ -16,6 +16,7 @@ const HealthSchema = Type.Object({
     transport: Type.String(),
     // null until the first background check has finished.
     reachable: Type.Union([Type.Boolean(), Type.Null()]),
+    error: Type.Union([Type.String(), Type.Null()]),
   }),
   clock: Type.Object({
     mode: Type.Union([Type.Literal('system'), Type.Literal('fixed')]),
@@ -53,7 +54,7 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
         testSupport: config.testSupport,
         demoMode: config.demoMode,
         registrationOpen: config.registrationOpen,
-        mail: { transport: config.mail.transport, reachable: mailReachable() },
+        mail: { transport: config.mail.transport, reachable: mailReachable(), error: mailError() },
         clock: clock.describe(),
       };
     },

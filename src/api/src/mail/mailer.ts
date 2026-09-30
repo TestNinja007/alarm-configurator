@@ -98,6 +98,11 @@ export function clearCapturedMessages(): void {
 const REACHABILITY_TTL_MS = 60_000;
 
 let lastReachable: boolean | null = null;
+/**
+ * Why the last check failed. Swallowing this made a broken mail setup
+ * indistinguishable from a blocked port, so it is kept and surfaced.
+ */
+let lastMailError: string | null = null;
 let lastCheckedAt = 0;
 let checkInFlight = false;
 
@@ -109,9 +114,18 @@ function refreshReachability(): void {
     .verify()
     .then(() => {
       lastReachable = true;
+      lastMailError = null;
     })
-    .catch(() => {
+    .catch((error: unknown) => {
       lastReachable = false;
+      const candidate = error as { code?: string; responseCode?: number; message?: string };
+      // The code is the useful part: EAUTH means the credentials are wrong,
+      // ETIMEDOUT or ECONNREFUSED mean the port never opened.
+      lastMailError = [candidate?.code, candidate?.responseCode, candidate?.message]
+        .filter(Boolean)
+        .join(' ')
+        .slice(0, 200);
+      console.warn(`[mail] SMTP check failed: ${lastMailError}`);
     })
     .finally(() => {
       lastCheckedAt = Date.now();
@@ -123,6 +137,10 @@ function refreshReachability(): void {
  * Returns immediately. `null` means nobody has managed to check yet, which is
  * the honest answer during the first moments after a start.
  */
+export function mailError(): string | null {
+  return lastMailError;
+}
+
 export function mailReachable(): boolean | null {
   if (config.mail.transport !== 'smtp') return true;
 
