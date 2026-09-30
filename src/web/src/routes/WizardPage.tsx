@@ -35,6 +35,10 @@ interface WizardForm {
   endMode: 'never' | 'date' | 'count';
   endDate: string;
   endAfterOccurrences: string;
+  repeatWithinDay: boolean;
+  endTimeOfDay: string;
+  repeatEvery: string;
+  repeatUnit: 'minutes' | 'hours';
   rule: Rule;
 }
 
@@ -49,6 +53,10 @@ function emptyForm(folderId: string): WizardForm {
     endMode: 'never',
     endDate: '',
     endAfterOccurrences: '',
+    repeatWithinDay: false,
+    endTimeOfDay: '17:00',
+    repeatEvery: '30',
+    repeatUnit: 'minutes',
     rule: { type: 'daily' },
   };
 }
@@ -64,6 +72,10 @@ function formFromAlarm(alarm: Alarm): WizardForm {
     endMode: alarm.endDate ? 'date' : alarm.endAfterOccurrences ? 'count' : 'never',
     endDate: alarm.endDate ?? '',
     endAfterOccurrences: alarm.endAfterOccurrences?.toString() ?? '',
+    repeatWithinDay: Boolean(alarm.endTimeOfDay && alarm.repeatEvery && alarm.repeatUnit),
+    endTimeOfDay: alarm.endTimeOfDay ?? '17:00',
+    repeatEvery: alarm.repeatEvery?.toString() ?? '30',
+    repeatUnit: alarm.repeatUnit ?? 'minutes',
     rule: alarm.rule,
   };
 }
@@ -82,6 +94,10 @@ function toPayload(form: WizardForm) {
       form.endMode === 'count' && form.endAfterOccurrences
         ? Number.parseInt(form.endAfterOccurrences, 10)
         : null,
+    // The three window fields travel together, or none of them does.
+    endTimeOfDay: form.repeatWithinDay ? form.endTimeOfDay : null,
+    repeatEvery: form.repeatWithinDay ? Number.parseInt(form.repeatEvery, 10) || null : null,
+    repeatUnit: form.repeatWithinDay ? form.repeatUnit : null,
     rule: form.rule,
   };
 }
@@ -305,6 +321,92 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
               />
             </div>
 
+            <fieldset className="fieldset" data-testid="alarm-repeat-window-fieldset">
+              <legend>Repeat during the day</legend>
+              <label className="radio-row">
+                <input
+                  type="checkbox"
+                  checked={form.repeatWithinDay}
+                  onChange={(event) => update({ repeatWithinDay: event.target.checked })}
+                  data-testid="alarm-repeat-within-day-checkbox"
+                />
+                Repeat every so often between two times
+              </label>
+
+              {form.repeatWithinDay ? (
+                <>
+                  <div className="field">
+                    <label htmlFor="alarm-repeat-every">Every</label>
+                    <input
+                      id="alarm-repeat-every"
+                      type="number"
+                      min={1}
+                      max={1440}
+                      value={form.repeatEvery}
+                      onChange={(event) => update({ repeatEvery: event.target.value })}
+                      aria-describedby={
+                        error?.fieldError('repeatEvery') ? 'alarm-repeat-every-error' : undefined
+                      }
+                      data-testid="alarm-repeat-every-input"
+                    />
+                    {error?.fieldError('repeatEvery') ? (
+                      <p
+                        id="alarm-repeat-every-error"
+                        className="field-error"
+                        data-testid="alarm-repeat-every-error"
+                      >
+                        {error.fieldError('repeatEvery')}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="alarm-repeat-unit">Unit</label>
+                    <select
+                      id="alarm-repeat-unit"
+                      value={form.repeatUnit}
+                      onChange={(event) =>
+                        update({ repeatUnit: event.target.value as 'minutes' | 'hours' })
+                      }
+                      data-testid="alarm-repeat-unit-select"
+                    >
+                      <option value="minutes">Minutes</option>
+                      <option value="hours">Hours</option>
+                    </select>
+                  </div>
+
+                  <div className="field">
+                    <label htmlFor="alarm-end-time">Until</label>
+                    <input
+                      id="alarm-end-time"
+                      type="time"
+                      value={form.endTimeOfDay}
+                      onChange={(event) => update({ endTimeOfDay: event.target.value })}
+                      aria-invalid={error?.fieldError('endTimeOfDay') ? true : undefined}
+                      aria-describedby={
+                        error?.fieldError('endTimeOfDay') ? 'alarm-end-time-error' : undefined
+                      }
+                      data-testid="alarm-end-time-input"
+                    />
+                    {error?.fieldError('endTimeOfDay') ? (
+                      <p
+                        id="alarm-end-time-error"
+                        className="field-error"
+                        data-testid="alarm-end-time-error"
+                      >
+                        {error.fieldError('endTimeOfDay')}
+                      </p>
+                    ) : null}
+                  </div>
+
+                  <p className="field-hint" data-testid="alarm-repeat-window-hint">
+                    The alarm starts at {form.timeOfDay} and repeats until {form.endTimeOfDay},
+                    on every day the repetition rule selects.
+                  </p>
+                </>
+              ) : null}
+            </fieldset>
+
             <fieldset className="fieldset">
               <legend>Ends</legend>
               {(['never', 'date', 'count'] as const).map((value) => (
@@ -391,6 +493,15 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
               </dd>
               <dt>Repeats</dt>
               <dd data-testid="review-rule">{describeRule(form.rule)}</dd>
+              {form.repeatWithinDay ? (
+                <>
+                  <dt>During the day</dt>
+                  <dd data-testid="review-window">
+                    every {form.repeatEvery} {form.repeatUnit} from {form.timeOfDay} to{' '}
+                    {form.endTimeOfDay}
+                  </dd>
+                </>
+              ) : null}
             </dl>
 
             <OccurrencePreview
@@ -403,6 +514,11 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
                   form.endMode === 'count' && form.endAfterOccurrences
                     ? Number.parseInt(form.endAfterOccurrences, 10)
                     : null,
+                endTimeOfDay: form.repeatWithinDay ? form.endTimeOfDay : null,
+                repeatEvery: form.repeatWithinDay
+                  ? Number.parseInt(form.repeatEvery, 10) || null
+                  : null,
+                repeatUnit: form.repeatWithinDay ? form.repeatUnit : null,
                 rule: form.rule,
               }}
             />

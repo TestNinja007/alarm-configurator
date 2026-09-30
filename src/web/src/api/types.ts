@@ -39,6 +39,9 @@ export interface Alarm {
   startDate: string;
   endDate: string | null;
   endAfterOccurrences: number | null;
+  endTimeOfDay: string | null;
+  repeatEvery: number | null;
+  repeatUnit: 'minutes' | 'hours' | null;
   rule: Rule;
   createdAt: string;
   updatedAt: string;
@@ -54,6 +57,18 @@ export interface AlarmList {
 export type AlarmSort = 'name' | 'created' | 'next';
 
 /** Renders a rule as the short phrase shown in the list's Repeats column. */
+/** The within-day window, as a phrase to sit alongside the rule. */
+export function describeWindow(alarm: {
+  timeOfDay: string;
+  endTimeOfDay?: string | null;
+  repeatEvery?: number | null;
+  repeatUnit?: 'minutes' | 'hours' | null;
+}): string | undefined {
+  if (!alarm.endTimeOfDay || !alarm.repeatEvery || !alarm.repeatUnit) return undefined;
+  const unit = alarm.repeatEvery === 1 ? alarm.repeatUnit.replace(/s$/, '') : alarm.repeatUnit;
+  return `every ${alarm.repeatEvery} ${unit} from ${alarm.timeOfDay} to ${alarm.endTimeOfDay}`;
+}
+
 export function describeRule(rule: Rule): string {
   switch (rule.type) {
     case 'once':
@@ -86,6 +101,9 @@ export interface PreviewRequest {
   startDate: string;
   endDate?: string | null;
   endAfterOccurrences?: number | null;
+  endTimeOfDay?: string | null;
+  repeatEvery?: number | null;
+  repeatUnit?: 'minutes' | 'hours' | null;
   rule: Rule;
   from?: string;
 }

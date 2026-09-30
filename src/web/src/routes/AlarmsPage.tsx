@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
 import {
   describeRule,
+  describeWindow,
   type Alarm,
   type AlarmDraft,
   type AlarmList,
@@ -338,7 +339,14 @@ export function AlarmsPage() {
                   </th>
                   <td data-testid="alarm-time-cell">{alarm.timeOfDay}</td>
                   <td data-testid="alarm-timezone-cell">{alarm.timezone}</td>
-                  <td data-testid="alarm-rule-cell">{describeRule(alarm.rule)}</td>
+                  <td data-testid="alarm-rule-cell">
+                    {describeRule(alarm.rule)}
+                    {describeWindow(alarm) ? (
+                      <span className="rule-window" data-testid="alarm-window-cell">
+                        {describeWindow(alarm)}
+                      </span>
+                    ) : null}
+                  </td>
                   <td>
                     <button
                       type="button"

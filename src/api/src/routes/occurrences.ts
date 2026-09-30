@@ -28,7 +28,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 const ALARM_COLUMNS = `
   a.id, a.folder_id, a.name, a.note, a.enabled, a.time_of_day, a.timezone,
-  a.start_date, a.end_date, a.end_after_occurrences, a.rule, a.created_at, a.updated_at
+  a.start_date, a.end_date, a.end_after_occurrences,
+  a.end_time_of_day, a.repeat_every, a.repeat_unit,
+  a.rule, a.created_at, a.updated_at
 `;
 
 function parseInstant(value: string | undefined, field: string): Date | undefined {
@@ -88,6 +90,9 @@ export async function occurrenceRoutes(app: FastifyInstance): Promise<void> {
             startDate: request.body.startDate,
             endDate: request.body.endDate ?? null,
             endAfterOccurrences: request.body.endAfterOccurrences ?? null,
+            endTimeOfDay: request.body.endTimeOfDay ?? null,
+            repeatEvery: request.body.repeatEvery ?? null,
+            repeatUnit: request.body.repeatUnit ?? null,
             rule: normaliseRule(request.body.rule),
           },
           { from, limit: request.body.limit ?? 10 },
