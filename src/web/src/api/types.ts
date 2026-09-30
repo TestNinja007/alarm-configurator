@@ -124,6 +124,7 @@ export interface UiState {
 export interface PendingVerification {
   email: string;
   verificationRequired: boolean;
+  emailSent: boolean;
   expiresAt: string;
   /** Present only where the server is not really sending mail. */
   code?: string;

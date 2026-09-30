@@ -57,6 +57,8 @@ export type RegisterBody = Static<typeof RegisterBodySchema>;
 export const PendingVerificationSchema = Type.Object({
   email: Type.String(),
   verificationRequired: Type.Boolean(),
+  /** False when the provider refused the message; ask for another code. */
+  emailSent: Type.Boolean(),
   expiresAt: Type.String({ format: 'date-time' }),
   /**
    * Present only when the server is not really sending mail, so a sandbox

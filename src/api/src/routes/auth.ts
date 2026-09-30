@@ -24,6 +24,7 @@ import {
 import { errorResponses } from '../schemas/common.js';
 import { consumeLoginAttempt, clearLoginAttempts, consumeRegistration } from '../auth/rateLimit.js';
 import { issueCode, verifyCode, CODE_TTL_MINUTES } from '../auth/verification.js';
+import { deliversExternally } from '../mail/mailer.js';
 import { sendVerificationCode } from '../mail/messages.js';
 import {
   PendingVerificationSchema,
@@ -105,17 +106,28 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       // The account exists but cannot be signed into until the code is
       // entered, so no session is issued here.
       const { code, expiresAt } = await issueCode(id);
-      await sendVerificationCode({ to: email, name, code });
+
+      // The account exists by now, so a provider hiccup must not turn into a
+      // 500 that leaves it stranded with a code nobody can reach. The caller
+      // is told delivery failed and can ask for another.
+      let emailSent = true;
+      try {
+        await sendVerificationCode({ to: email, name, code });
+      } catch (error) {
+        emailSent = false;
+        request.log.error({ err: error, email }, 'Verification email could not be sent');
+      }
 
       reply.status(201);
       return {
         email,
         verificationRequired: true,
+        emailSent,
         expiresAt: expiresAt.toISOString(),
-        // Only when the app is not really sending mail. With a working SMTP
-        // transport this is absent, or anyone could register an address they
-        // do not own and read its code straight off the response.
-        code: config.mail.transport === 'smtp' ? undefined : code,
+        // Only when the app is not really sending mail. Wherever it is, this
+        // is absent, or anyone could register an address they do not own and
+        // read its code straight off the response.
+        code: deliversExternally() ? undefined : code,
       };
     },
   );
@@ -223,17 +235,30 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       // as a real one, minus any code. Saying "no such account" here would
       // turn this into an address checker.
       if (!row || row.email_verified_at) {
-        return { email, verificationRequired: true, expiresAt: expiresAt.toISOString() };
+        return {
+          email,
+          verificationRequired: true,
+          emailSent: true,
+          expiresAt: expiresAt.toISOString(),
+        };
       }
 
       const issued = await issueCode(row.id);
-      await sendVerificationCode({ to: email, name: row.name, code: issued.code });
+
+      let emailSent = true;
+      try {
+        await sendVerificationCode({ to: email, name: row.name, code: issued.code });
+      } catch (error) {
+        emailSent = false;
+        request.log.error({ err: error, email }, 'Verification email could not be sent');
+      }
 
       return {
         email,
         verificationRequired: true,
+        emailSent,
         expiresAt: issued.expiresAt.toISOString(),
-        code: config.mail.transport === 'smtp' ? undefined : issued.code,
+        code: deliversExternally() ? undefined : issued.code,
       };
     },
   );

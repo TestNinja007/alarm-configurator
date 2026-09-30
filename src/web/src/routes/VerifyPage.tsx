@@ -20,6 +20,7 @@ export function VerifyPage() {
   const [code, setCode] = useState('');
   // Carried through the redirect from registration, when mail is not really sent.
   const [shownCode, setShownCode] = useState(params.get('code') ?? '');
+  const [undelivered, setUndelivered] = useState(params.get('undelivered') === '1');
 
   const verify = useMutation({
     mutationFn: () => api.post<Session>('/auth/verify', { email, code: code.trim() }),
@@ -33,6 +34,7 @@ export function VerifyPage() {
     mutationFn: () => api.post<PendingVerification>('/auth/resend-verification', { email }),
     onSuccess: (pending) => {
       setShownCode(pending.code ?? '');
+      setUndelivered(!pending.emailSent);
       setCode('');
     },
   });
@@ -64,6 +66,13 @@ export function VerifyPage() {
           <p className="alert alert-info" data-testid="verify-code-shown">
             This instance has no mail provider configured, so the code is shown here instead
             of being emailed: <strong data-testid="verify-code-value">{shownCode}</strong>
+          </p>
+        ) : null}
+
+        {undelivered ? (
+          <p className="alert alert-error" role="alert" data-testid="verify-undelivered">
+            The code could not be sent. Try requesting a new one; if that keeps failing,
+            the mail provider is refusing messages.
           </p>
         ) : null}
 

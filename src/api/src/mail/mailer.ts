@@ -83,6 +83,20 @@ export async function sendMail(message: {
 }
 
 /** Everything captured so far, newest last. Empty under the smtp transport. */
+/**
+ * Whether messages actually leave the process.
+ *
+ * Callers must ask this rather than compare against a transport name. The
+ * first version of the verification flow withheld the code only when the
+ * transport was exactly 'smtp', so adding 'brevo' silently reinstated the very
+ * leak the check existed to prevent: the code was handed back in the response
+ * while a real email was also being sent, letting anyone register an address
+ * they do not own and read its code.
+ */
+export function deliversExternally(): boolean {
+  return config.mail.transport === 'smtp' || config.mail.transport === 'brevo';
+}
+
 export function capturedMessages(): SentMessage[] {
   return [...captured];
 }
