@@ -83,7 +83,13 @@ export const config = {
    * mail server; docker compose runs Mailpit and sets this to smtp.
    */
   mail: {
-    transport: (process.env.MAIL_TRANSPORT ?? 'capture') as 'smtp' | 'capture' | 'log',
+    /**
+     * `brevo` posts over HTTPS instead of speaking SMTP. Hosting platforms
+     * routinely block outbound SMTP ports to deter spam — Render does, which
+     * is why an SMTP transport times out there however correct the
+     * credentials are — and port 443 is never blocked.
+     */
+    transport: (process.env.MAIL_TRANSPORT ?? 'capture') as 'smtp' | 'brevo' | 'capture' | 'log',
     host: process.env.MAIL_HOST ?? '127.0.0.1',
     port: integer('MAIL_PORT', 1025),
     secure: process.env.MAIL_SECURE === '1',
@@ -96,6 +102,8 @@ export const config = {
     user: process.env.MAIL_USER,
     password: process.env.MAIL_PASSWORD,
     from: process.env.MAIL_FROM ?? 'Alarm Configurator <no-reply@alarm-configurator.test>',
+    /** Brevo REST API key, the one beginning xkeysib-. Only used by `brevo`. */
+    apiKey: process.env.MAIL_API_KEY,
   },
   /** Directory holding the built SPA; absent during API-only development. */
   webDistDir: resolve(repoRoot, 'src', 'web', 'dist'),
