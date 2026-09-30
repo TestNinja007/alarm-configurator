@@ -160,9 +160,14 @@ usable, and it is withheld the moment real sending is configured — otherwise
 anyone could register an address they do not own and read its code straight off
 the response.
 
-`GET /api/v1/health` reports the transport and whether the mail server answers,
-so a deployment that cannot send is visible rather than silently swallowing
-sign-ups.
+`GET /api/v1/health` reports the transport and whether the mail server answered
+the last time anyone checked, so a deployment that cannot send is visible rather
+than silently swallowing sign-ups. `reachable` is `null` until the first
+background check completes.
+
+Health never waits on the mail server. It reports a cached answer refreshed at
+most once a minute in the background, because a health endpoint that depends on
+a third party responding is a health endpoint that can take the whole site down.
 
 ### On the original "no external network calls" rule
 

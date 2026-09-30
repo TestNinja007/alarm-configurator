@@ -37,6 +37,12 @@ function smtpTransport(): Transporter {
     secure: config.mail.secure,
     ignoreTLS: config.mail.ignoreTls,
     auth: config.mail.user ? { user: config.mail.user, pass: config.mail.password } : undefined,
+    // Without these, nodemailer waits two minutes on a host that accepts the
+    // connection and then says nothing, which is exactly how a filtered port
+    // behaves.
+    connectionTimeout: 5_000,
+    greetingTimeout: 5_000,
+    socketTimeout: 10_000,
   });
   return transporter;
 }
@@ -79,15 +85,51 @@ export function clearCapturedMessages(): void {
 }
 
 /**
- * Confirms the mail server is reachable. Reported by /health so a deployment
- * that cannot send is visible rather than silently swallowing registrations.
+ * Whether the mail server answered, as of the last time anyone asked.
+ *
+ * This is deliberately a cached value that is never awaited by its caller. An
+ * earlier version had /health await transporter.verify(), which meant every
+ * health check opened an SMTP connection. Against a host that accepts the
+ * connection and then stays silent — a filtered port, for instance — that took
+ * the full socket timeout, so health never responded, the platform decided the
+ * service was dead, and the whole site went down. A health endpoint must not
+ * depend on a third party answering.
  */
-export async function mailReachable(): Promise<boolean> {
+const REACHABILITY_TTL_MS = 60_000;
+
+let lastReachable: boolean | null = null;
+let lastCheckedAt = 0;
+let checkInFlight = false;
+
+function refreshReachability(): void {
+  if (checkInFlight) return;
+  checkInFlight = true;
+
+  smtpTransport()
+    .verify()
+    .then(() => {
+      lastReachable = true;
+    })
+    .catch(() => {
+      lastReachable = false;
+    })
+    .finally(() => {
+      lastCheckedAt = Date.now();
+      checkInFlight = false;
+    });
+}
+
+/**
+ * Returns immediately. `null` means nobody has managed to check yet, which is
+ * the honest answer during the first moments after a start.
+ */
+export function mailReachable(): boolean | null {
   if (config.mail.transport !== 'smtp') return true;
-  try {
-    await smtpTransport().verify();
-    return true;
-  } catch {
-    return false;
+
+  if (Date.now() - lastCheckedAt > REACHABILITY_TTL_MS) {
+    // Kicked off in the background; this call does not wait for it.
+    refreshReachability();
   }
+
+  return lastReachable;
 }

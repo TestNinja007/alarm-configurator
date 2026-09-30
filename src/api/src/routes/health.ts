@@ -14,7 +14,8 @@ const HealthSchema = Type.Object({
   registrationOpen: Type.Boolean(),
   mail: Type.Object({
     transport: Type.String(),
-    reachable: Type.Boolean(),
+    // null until the first background check has finished.
+    reachable: Type.Union([Type.Boolean(), Type.Null()]),
   }),
   clock: Type.Object({
     mode: Type.Union([Type.Literal('system'), Type.Literal('fixed')]),
@@ -52,7 +53,7 @@ export async function healthRoutes(app: FastifyInstance): Promise<void> {
         testSupport: config.testSupport,
         demoMode: config.demoMode,
         registrationOpen: config.registrationOpen,
-        mail: { transport: config.mail.transport, reachable: await mailReachable() },
+        mail: { transport: config.mail.transport, reachable: mailReachable() },
         clock: clock.describe(),
       };
     },
