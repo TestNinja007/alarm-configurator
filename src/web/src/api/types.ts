@@ -147,3 +147,11 @@ export interface UpcomingList {
   now: string;
   withinMinutes: number;
 }
+
+export interface PasswordResetIssued {
+  email: string;
+  expiresAt: string;
+  emailSent: boolean;
+  /** Present only where the server is not really sending mail. */
+  code?: string;
+}

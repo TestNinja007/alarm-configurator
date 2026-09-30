@@ -101,7 +101,7 @@ export function RegisterPage() {
           autoComplete="new-password"
           testId="register-password-input"
           error={passwordError}
-          hint="At least 10 characters. There is no password reset on this instance, so use something you will remember. We will email you a code to confirm the address."
+          hint="At least 10 characters. We will email you a code to confirm the address."
         />
 
         <button

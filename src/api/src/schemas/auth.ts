@@ -81,3 +81,31 @@ export const ResendVerificationBodySchema = Type.Object(
   { additionalProperties: false },
 );
 export type ResendVerificationBody = Static<typeof ResendVerificationBodySchema>;
+
+export const ForgotPasswordBodySchema = Type.Object(
+  { email: Type.String({ minLength: 3, maxLength: 254 }) },
+  { additionalProperties: false },
+);
+export type ForgotPasswordBody = Static<typeof ForgotPasswordBodySchema>;
+
+/**
+ * Answers identically whether or not the address has an account, so this
+ * cannot be used to discover which addresses are registered.
+ */
+export const PasswordResetIssuedSchema = Type.Object({
+  email: Type.String(),
+  expiresAt: Type.String({ format: 'date-time' }),
+  emailSent: Type.Boolean(),
+  /** Present only where the server is not really sending mail. */
+  code: Type.Optional(Type.String()),
+});
+
+export const ResetPasswordBodySchema = Type.Object(
+  {
+    email: Type.String({ minLength: 3, maxLength: 254 }),
+    code: Type.String({ minLength: 6, maxLength: 6, pattern: '^[0-9]{6}$' }),
+    password: Type.String({ minLength: 10, maxLength: 200 }),
+  },
+  { additionalProperties: false },
+);
+export type ResetPasswordBody = Static<typeof ResetPasswordBodySchema>;
