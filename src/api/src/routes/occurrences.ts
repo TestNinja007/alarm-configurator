@@ -12,6 +12,9 @@ import { normaliseRule } from '../schemas/rule.js';
 import {
   ConflictListSchema,
   FolderSummarySchema,
+  UpcomingListSchema,
+  UpcomingQuerySchema,
+  type UpcomingQuery,
   OccurrenceListSchema,
   OccurrencesQuerySchema,
   PreviewBodySchema,
@@ -90,6 +93,59 @@ export async function occurrenceRoutes(app: FastifyInstance): Promise<void> {
           { from, limit: request.body.limit ?? 10 },
         ),
       };
+    },
+  );
+
+
+  app.get<{ Querystring: UpcomingQuery }>(
+    '/me/upcoming',
+    {
+      schema: {
+        summary: 'Occurrences due soon across every enabled alarm',
+        description:
+          'What the browser polls in order to raise a notification when an alarm ' +
+          'comes due. Disabled alarms are ignored, as are alarms in other people’s folders.',
+        tags: ['occurrences'],
+        querystring: UpcomingQuerySchema,
+        response: { 200: UpcomingListSchema, ...errorResponses },
+      },
+    },
+    async (request) => {
+      const withinMinutes = request.query.withinMinutes ?? 60;
+      const now = clock.now();
+      const until = new Date(now.getTime() + withinMinutes * 60 * 1000);
+
+      const rows = (
+        await query<AlarmRow & { folder_name: string }>(
+          `SELECT ${ALARM_COLUMNS}, f.name AS folder_name
+             FROM alarms a
+             JOIN folders f ON f.id = a.folder_id
+            WHERE f.user_id = $1 AND a.enabled = true`,
+          [request.user!.id],
+        )
+      ).rows;
+
+      const items = rows
+        .flatMap((row) =>
+          occurrencesFor(specFromRow(row), { from: now, to: until, limit: 50 }).map(
+            (occurrence) => ({
+              alarmId: row.id,
+              alarmName: row.name,
+              folderId: row.folder_id,
+              folderName: row.folder_name,
+              timezone: row.timezone,
+              note: row.note,
+              utc: occurrence.utc,
+              local: occurrence.local,
+            }),
+          ),
+        )
+        // Soonest first, so a client that takes only the head of the list
+        // still gets the next thing to fire.
+        .sort((left, right) => left.utc.localeCompare(right.utc))
+        .slice(0, request.query.limit ?? 50);
+
+      return { items, now: now.toISOString(), withinMinutes };
     },
   );
 

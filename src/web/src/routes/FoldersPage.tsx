@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
 import type { Folder } from '../api/types';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { NotificationSettings } from '../components/NotificationSettings';
 import { useToast } from '../components/Toaster';
 
 export function FoldersPage() {
@@ -126,6 +127,8 @@ export function FoldersPage() {
           </p>
         )}
       </section>
+
+      <NotificationSettings />
 
       <ConfirmDialog
         open={pendingDelete !== undefined}

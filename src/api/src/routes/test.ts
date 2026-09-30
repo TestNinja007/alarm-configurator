@@ -218,8 +218,11 @@ export async function testRoutes(app: FastifyInstance): Promise<void> {
       const name = `Throwaway ${id.slice(0, 8)}`;
 
       await query(
-        `INSERT INTO users (id, email, name, password_hash, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $5)`,
+        // Verified immediately: a throwaway account with no inbox to check
+        // would otherwise be unable to sign in.
+        `INSERT INTO users (id, email, name, password_hash, email_verified_at,
+                            created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $5, $5)`,
         [id, email, name, await hashPassword(password), clock.now()],
       );
 

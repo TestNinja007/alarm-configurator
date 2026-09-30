@@ -153,3 +153,31 @@ export const BulkEnableBodySchema = Type.Object(
   { additionalProperties: false },
 );
 export type BulkEnableBody = Static<typeof BulkEnableBodySchema>;
+
+/** One upcoming occurrence, with enough context to render a notification. */
+export const UpcomingOccurrenceSchema = Type.Object({
+  alarmId: UuidSchema,
+  alarmName: Type.String(),
+  folderId: UuidSchema,
+  folderName: Type.String(),
+  timezone: Type.String(),
+  note: Type.Union([Type.String(), Type.Null()]),
+  utc: Type.String(),
+  local: Type.String(),
+});
+
+export const UpcomingListSchema = Type.Object({
+  items: Type.Array(UpcomingOccurrenceSchema),
+  /** The server's idea of now, so a client can measure its own drift. */
+  now: Type.String({ format: 'date-time' }),
+  withinMinutes: Type.Integer(),
+});
+
+export const UpcomingQuerySchema = Type.Object(
+  {
+    withinMinutes: Type.Optional(Type.Integer({ minimum: 1, maximum: 1440, default: 60 })),
+    limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 200, default: 50 })),
+  },
+  { additionalProperties: false },
+);
+export type UpcomingQuery = Static<typeof UpcomingQuerySchema>;
