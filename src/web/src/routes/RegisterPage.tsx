@@ -23,6 +23,7 @@ export function RegisterPage() {
       // is the verification step rather than the app.
       const query = new URLSearchParams({ email: pending.email });
       if (pending.code) query.set('code', pending.code);
+      if (!pending.emailSent) query.set('undelivered', '1');
       void navigate(`/verify?${query.toString()}`);
     },
   });
