@@ -29,7 +29,12 @@ export const AlarmSchema = Type.Object(
     endAfterOccurrences: Type.Union([Type.Integer(), Type.Null()]),
     endTimeOfDay: Type.Union([TimeOfDaySchema, Type.Null()]),
     repeatEvery: Type.Union([Type.Integer(), Type.Null()]),
-    repeatUnit: Type.Union([Type.Literal('minutes'), Type.Literal('hours'), Type.Null()]),
+    repeatUnit: Type.Union([
+      Type.Literal('seconds'),
+      Type.Literal('minutes'),
+      Type.Literal('hours'),
+      Type.Null(),
+    ]),
     rule: RuleSchema,
     createdAt: TimestampSchema,
     updatedAt: TimestampSchema,
@@ -55,7 +60,12 @@ const scheduleProperties = {
   endTimeOfDay: Type.Optional(Type.Union([TimeOfDaySchema, Type.Null()])),
   repeatEvery: Type.Optional(Type.Union([Type.Integer({ minimum: 1, maximum: 1440 }), Type.Null()])),
   repeatUnit: Type.Optional(
-    Type.Union([Type.Literal('minutes'), Type.Literal('hours'), Type.Null()]),
+    Type.Union([
+      Type.Literal('seconds'),
+      Type.Literal('minutes'),
+      Type.Literal('hours'),
+      Type.Null(),
+    ]),
   ),
   rule: RuleSchema,
 };

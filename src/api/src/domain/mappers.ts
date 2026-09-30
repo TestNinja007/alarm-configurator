@@ -15,7 +15,7 @@ export interface AlarmRow {
   end_after_occurrences: number | null;
   end_time_of_day: string | null;
   repeat_every: number | null;
-  repeat_unit: 'minutes' | 'hours' | null;
+  repeat_unit: 'seconds' | 'minutes' | 'hours' | null;
   rule: Rule;
   created_at: Date;
   updated_at: Date;

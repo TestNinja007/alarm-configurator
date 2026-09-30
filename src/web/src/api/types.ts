@@ -41,7 +41,7 @@ export interface Alarm {
   endAfterOccurrences: number | null;
   endTimeOfDay: string | null;
   repeatEvery: number | null;
-  repeatUnit: 'minutes' | 'hours' | null;
+  repeatUnit: 'seconds' | 'minutes' | 'hours' | null;
   rule: Rule;
   createdAt: string;
   updatedAt: string;
@@ -62,7 +62,7 @@ export function describeWindow(alarm: {
   timeOfDay: string;
   endTimeOfDay?: string | null;
   repeatEvery?: number | null;
-  repeatUnit?: 'minutes' | 'hours' | null;
+  repeatUnit?: 'seconds' | 'minutes' | 'hours' | null;
 }): string | undefined {
   if (!alarm.endTimeOfDay || !alarm.repeatEvery || !alarm.repeatUnit) return undefined;
   const unit = alarm.repeatEvery === 1 ? alarm.repeatUnit.replace(/s$/, '') : alarm.repeatUnit;
@@ -103,7 +103,7 @@ export interface PreviewRequest {
   endAfterOccurrences?: number | null;
   endTimeOfDay?: string | null;
   repeatEvery?: number | null;
-  repeatUnit?: 'minutes' | 'hours' | null;
+  repeatUnit?: 'seconds' | 'minutes' | 'hours' | null;
   rule: Rule;
   from?: string;
 }
