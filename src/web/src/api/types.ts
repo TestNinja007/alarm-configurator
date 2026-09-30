@@ -40,6 +40,8 @@ export interface Alarm {
   endDate: string | null;
   endTime: string | null;
   endAfterOccurrences: number | null;
+  speechText: string | null;
+  speechVoice: 'male' | 'female' | null;
   endTimeOfDay: string | null;
   repeatEvery: number | null;
   repeatUnit: 'seconds' | 'minutes' | 'hours' | null;
@@ -61,6 +63,8 @@ export type AlarmSort = 'name' | 'created' | 'next';
 /** The within-day window, as a phrase to sit alongside the rule. */
 export function describeWindow(alarm: {
   timeOfDay: string;
+  speechText?: string | null;
+  speechVoice?: 'male' | 'female' | null;
   endTimeOfDay?: string | null;
   repeatEvery?: number | null;
   repeatUnit?: 'seconds' | 'minutes' | 'hours' | null;
@@ -103,6 +107,8 @@ export interface PreviewRequest {
   endDate?: string | null;
   endTime?: string | null;
   endAfterOccurrences?: number | null;
+  speechText?: string | null;
+  speechVoice?: 'male' | 'female' | null;
   endTimeOfDay?: string | null;
   repeatEvery?: number | null;
   repeatUnit?: 'seconds' | 'minutes' | 'hours' | null;
@@ -157,6 +163,8 @@ export interface UpcomingOccurrence {
   folderName: string;
   timezone: string;
   note: string | null;
+  speechText: string | null;
+  speechVoice: 'male' | 'female' | null;
   utc: string;
   local: string;
 }

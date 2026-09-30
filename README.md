@@ -331,6 +331,32 @@ setting rather than a default. Under `docker compose`, mail goes to a container
 on the same network and nothing leaves the machine; only a deployment pointed at
 a real provider makes an outbound call.
 
+## Speaking an alarm aloud
+
+An alarm can carry a message of up to 200 characters, read out by the browser's
+own speech synthesis when it fires. Nothing is generated in advance, nothing is
+stored but the words, and no external service is involved — the voices belong to
+the operating system, so this costs nothing and works offline.
+
+| Field | Meaning |
+| --- | --- |
+| `speechText` | 1 to 200 characters. Empty means silent. |
+| `speechVoice` | `male` or `female`. A preference, not a named voice. |
+
+A voice without text is 422 with code `needs_text`.
+
+**Gender is a preference, not a guarantee.** `SpeechSynthesisVoice` exposes only
+`voiceURI`, `name`, `lang`, `localService` and `default` — there is no gender
+field in the standard and none in practice. The preference is matched against
+the names of the voices installed on the machine doing the speaking, which
+differ from one computer to another, and falls back to whatever is available
+rather than failing. The wizard names the voice it would actually use, and says
+that another computer may choose differently.
+
+Voices load asynchronously in Chromium, so the first `getVoices()` after a page
+load returns nothing. Anything showing which voice will be used has to subscribe
+to `voiceschanged` or it reports the fallback for ever.
+
 ## Desktop notifications
 
 While the app is open in a tab, alarms raise native notifications on Windows and

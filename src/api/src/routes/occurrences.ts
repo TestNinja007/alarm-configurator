@@ -29,6 +29,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const ALARM_COLUMNS = `
   a.id, a.folder_id, a.name, a.note, a.enabled, a.time_of_day, a.timezone,
   a.start_date, a.end_date, a.end_time, a.end_after_occurrences,
+  a.speech_text, a.speech_voice,
   a.end_time_of_day, a.repeat_every, a.repeat_unit,
   a.rule, a.created_at, a.updated_at
 `;
@@ -141,6 +142,8 @@ export async function occurrenceRoutes(app: FastifyInstance): Promise<void> {
               folderName: row.folder_name,
               timezone: row.timezone,
               note: row.note,
+              speechText: row.speech_text,
+              speechVoice: row.speech_voice,
               utc: occurrence.utc,
               local: occurrence.local,
             }),
