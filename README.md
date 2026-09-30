@@ -269,9 +269,12 @@ This is **not** push. Nothing arrives once the browser is closed. Real push woul
 need a service worker and a server awake around the clock, which a free instance
 that sleeps after fifteen minutes cannot be.
 
-The controls live on the folder list. Permission is requested from a button
-rather than on load, because browsers ignore the request otherwise, and there is
-a "send a test notification" button so a person can confirm it works without
+The scheduler runs in a provider around the whole signed-in app, so alarms fire
+on any page. It must be a single shared instance: it remembers what has already
+fired in a ref, so two of them would each keep their own copy and both raise a
+notification for the same occurrence. The controls live under Settings. Permission is requested from a button rather
+than on load, because browsers ignore the request otherwise, and there is a
+"send a test notification" button so a person can confirm it works without
 waiting for an alarm.
 
 For tests, `notification-permission-state` carries the state as data attributes:

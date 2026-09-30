@@ -1,11 +1,11 @@
-import { useAlarmNotifications } from '../hooks/useAlarmNotifications';
+import { useNotifications } from './NotificationProvider';
 
 /**
  * The controls for desktop notifications, plus enough visible state that a test
  * can tell what the browser has decided without inspecting the browser itself.
  */
 export function NotificationSettings() {
-  const notifications = useAlarmNotifications();
+  const notifications = useNotifications();
 
   return (
     <section
@@ -83,8 +83,8 @@ export function NotificationSettings() {
       </div>
 
       <p className="field-hint" data-testid="notification-caveat">
-        Notifications only appear while this page is open in a tab. Closing the browser
-        stops them.
+        Notifications appear while the app is open in a tab, on any page. Closing the
+        browser stops them.
       </p>
     </section>
   );
