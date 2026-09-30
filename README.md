@@ -165,6 +165,23 @@ response carries the code, and its presence reveals whether the address has an
 account. Wherever mail is genuinely sent — which is every deployment — no code
 is returned and the two answers are identical.
 
+### Settings
+
+`/settings` groups everything about the account rather than about alarms:
+the display name, the password, desktop notifications, and deleting the
+account — in that order, so the irreversible one is last.
+
+The email address is fixed once confirmed, since changing it would mean
+re-verifying and there is nothing in this application that needs it.
+
+**Changing a password while signed in** is a different route from resetting a
+forgotten one. It requires the current password, refuses a new password that
+matches the old one or contains the email address, and ends **every other**
+session while keeping the caller's own. Someone changing their password
+deliberately should not be thrown off the device they are doing it on; a reset,
+where the account may already be compromised, ends every session including the
+caller's.
+
 ### Deleting an account
 
 `DELETE /api/v1/me` removes the account and cascades to its sessions, folders,
@@ -302,6 +319,8 @@ Every non-2xx response uses one envelope:
 | GET | `/alarms/{id}/occurrences` | `from`, `to`, `limit`. `to - from` may not exceed 366 days. |
 | GET/PUT/DELETE | `/me/alarm-draft` | The wizard draft (A-03). |
 | GET/PUT | `/me/ui-state` | Folder filter and sort order (A-04). |
+| PATCH | `/me/profile` | Changes the display name. |
+| PUT | `/me/password` | Changes the password, given the current one. |
 | DELETE | `/me` | Deletes the account and everything in it. Needs `?confirm=true` and the password. |
 | GET | `/me/upcoming` | Occurrences due soon across every enabled alarm, for the notification scheduler. |
 | GET | `/health` | Always mounted, whatever `TEST_SUPPORT` is set to (T-04). |
