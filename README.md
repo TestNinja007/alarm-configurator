@@ -142,7 +142,8 @@ of the application. There is still **no password reset**, and the form says so.
 | --- | --- |
 | `capture` | Held in memory, nothing sent. The default, so `npm start` needs no mail server. |
 | `log` | Captured and printed. |
-| `smtp` | A real SMTP conversation, to Mailpit locally or a provider in production. |
+| `smtp` | A real SMTP conversation, to Mailpit locally. |
+| `brevo` | Posts to Brevo's API over HTTPS. What the deployment uses. |
 
 `docker compose up --build` runs **Mailpit** alongside the app and points the
 API at it. Messages never leave the machine, so the offline guarantee still
@@ -168,6 +169,21 @@ background check completes.
 Health never waits on the mail server. It reports a cached answer refreshed at
 most once a minute in the background, because a health endpoint that depends on
 a third party responding is a health endpoint that can take the whole site down.
+
+### Why the deployment does not use SMTP
+
+Hosting platforms block outbound SMTP ports to deter spam, and Render is one of
+them. A connection to `smtp-relay.brevo.com:587` from there times out no matter
+how correct the credentials are — health reported
+`ETIMEDOUT Connection timeout`, which is a refused connection rather than a
+refused login.
+
+So the deployment sends through the same provider over HTTPS instead, which
+nothing blocks. `MAIL_TRANSPORT=brevo` plus `MAIL_API_KEY` (the REST key,
+beginning `xkeysib-`) and `MAIL_FROM` set to a verified sender.
+
+Locally, `smtp` against Mailpit is still the better choice: it is a real SMTP
+conversation with a real inbox to read, and nothing leaves the machine.
 
 ### On the original "no external network calls" rule
 

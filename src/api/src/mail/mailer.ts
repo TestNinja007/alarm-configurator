@@ -1,5 +1,6 @@
 import { createTransport, type Transporter } from 'nodemailer';
 import { config } from '../config.js';
+import { brevoReachable, sendViaBrevo } from './brevo.js';
 
 /**
  * Outbound email.
@@ -7,8 +8,10 @@ import { config } from '../config.js';
  * Three transports, chosen by MAIL_TRANSPORT:
  *
  *   smtp     a real SMTP conversation. Points at Mailpit in development, where
- *            the message never leaves the machine, and at a provider in
- *            production. Identical code path either way.
+ *            the message never leaves the machine. Note that hosting platforms
+ *            commonly block outbound SMTP: on Render it times out whatever the
+ *            credentials say, which is what `brevo` exists to work around.
+ *   brevo    the same provider over HTTPS, which nothing blocks.
  *   capture  keeps messages in memory and sends nothing. For running without
  *            any mail server at all.
  *   log      prints them. Useful when watching a container's output.
@@ -64,6 +67,10 @@ export async function sendMail(message: {
       console.log(`[mail] to=${message.to} subject="${message.subject}"\n${message.text}`);
       return;
 
+    case 'brevo':
+      await sendViaBrevo(message);
+      return;
+
     case 'smtp':
       await smtpTransport().sendMail({
         from: config.mail.from,
@@ -110,8 +117,10 @@ function refreshReachability(): void {
   if (checkInFlight) return;
   checkInFlight = true;
 
-  smtpTransport()
-    .verify()
+  const probe =
+    config.mail.transport === 'brevo' ? brevoReachable() : smtpTransport().verify();
+
+  probe
     .then(() => {
       lastReachable = true;
       lastMailError = null;
@@ -142,7 +151,7 @@ export function mailError(): string | null {
 }
 
 export function mailReachable(): boolean | null {
-  if (config.mail.transport !== 'smtp') return true;
+  if (config.mail.transport !== 'smtp' && config.mail.transport !== 'brevo') return true;
 
   if (Date.now() - lastCheckedAt > REACHABILITY_TTL_MS) {
     // Kicked off in the background; this call does not wait for it.

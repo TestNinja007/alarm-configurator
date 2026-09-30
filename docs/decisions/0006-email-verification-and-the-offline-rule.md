@@ -45,3 +45,19 @@ only to a caller who has already supplied the correct password.
 Codes are stored in the clear. They are short-lived, single-purpose, and a
 sandbox has to be able to show one back to the person who asked for it. Hashing
 them would prevent exactly that without protecting anything worth protecting.
+
+## Addendum: HTTPS rather than SMTP in production
+
+Render blocks outbound SMTP. The first deployment configured for a provider
+reported `ETIMEDOUT Connection timeout` from its health check — a connection
+that never opened, not a login that was refused. Most hosting platforms do this
+to deter spam, and no credential fixes it.
+
+The transport abstraction absorbed the change: a `brevo` transport posts to the
+provider's REST API over HTTPS, which nothing blocks, and the deployment uses
+that. `smtp` remains the right choice locally, where Mailpit gives a real SMTP
+conversation and a real inbox for tests to read.
+
+This is also why the failure reason is now logged and surfaced in `/health`.
+Swallowing it made a blocked port indistinguishable from a wrong password, and
+the difference is the whole diagnosis.
