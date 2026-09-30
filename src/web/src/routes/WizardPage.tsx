@@ -9,6 +9,7 @@ import {
   type Rule,
   type Weekday,
 } from '../api/types';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { OccurrencePreview } from '../components/OccurrencePreview';
 import { useToast } from '../components/Toaster';
 
@@ -95,6 +96,9 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<WizardForm>(() => emptyForm(params.folderId ?? ''));
   const [hydrated, setHydrated] = useState(false);
+  /** What the alarm looked like when it loaded, so an edit knows if it changed. */
+  const [original, setOriginal] = useState<WizardForm | undefined>();
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
 
   const existing = useQuery({
     queryKey: ['alarm', alarmId],
@@ -122,7 +126,9 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
     setHydrated(true);
 
     if (mode === 'edit' && existing.data) {
-      setForm(formFromAlarm(existing.data));
+      const loaded = formFromAlarm(existing.data);
+      setForm(loaded);
+      setOriginal(loaded);
     } else {
       const saved = draft.data?.draft;
       if (saved && typeof saved.payload === 'object') {
@@ -165,6 +171,21 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
 
   const error = submit.error instanceof ApiError ? submit.error : undefined;
   const update = (patch: Partial<WizardForm>) => setForm((current) => ({ ...current, ...patch }));
+
+  const folderPath = `/folders/${form.folderId}`;
+
+  // Only an edit can lose anything by leaving: a create keeps its draft on the
+  // server, so backing out of one is free.
+  const hasUnsavedEdits =
+    mode === 'edit' && original !== undefined && JSON.stringify(form) !== JSON.stringify(original);
+
+  function cancel() {
+    if (hasUnsavedEdits) {
+      setConfirmingCancel(true);
+      return;
+    }
+    void navigate(folderPath);
+  }
 
   function goTo(next: number) {
     setStep(next);
@@ -421,13 +442,22 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
           </button>
         )}
 
+        <button
+          type="button"
+          className="button"
+          onClick={cancel}
+          data-testid="wizard-cancel-button"
+        >
+          Cancel
+        </button>
+
         {mode === 'create' ? (
           <button
             type="button"
             className="button button-danger"
             onClick={() => {
               discardDraft.mutate();
-              void navigate(`/folders/${form.folderId}`);
+              void navigate(folderPath);
             }}
             data-testid="wizard-discard-button"
           >
@@ -435,6 +465,26 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
           </button>
         ) : null}
       </div>
+
+      {mode === 'create' ? (
+        <p className="field-hint" data-testid="wizard-cancel-hint">
+          Cancelling keeps this draft, so you can pick it up later. Discarding throws it
+          away.
+        </p>
+      ) : null}
+
+      <ConfirmDialog
+        open={confirmingCancel}
+        onOpenChange={setConfirmingCancel}
+        title="Discard your changes?"
+        description="This alarm has unsaved changes. Leaving now keeps it as it was."
+        confirmLabel="Discard changes"
+        onConfirm={() => {
+          setConfirmingCancel(false);
+          void navigate(folderPath);
+        }}
+        testId="wizard-cancel-dialog"
+      />
     </main>
   );
 }

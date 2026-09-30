@@ -361,6 +361,7 @@ All deterministic: no random delays, no random failures.
 | A-01 | The alarm list loads after first render, with a skeleton and an `aria-busy` container. The delay is `LIST_DELAY_MS`, default 600 ms. | done |
 | A-02 | Field-level validation with inline errors, client- and server-side, including cross-field errors (R-01) that attach to one field. | done |
 | A-03 | Four-step create wizard with a server-side draft that survives reload, and a resumable entry point. | done |
+| — | Leaving the wizard: **Cancel** backs out, and in an edit it asks first if anything changed. In a create it keeps the draft, which is what **Discard draft** is for. | done |
 | A-04 | Per-user UI state: last folder filter and sort order stored server-side, reapplied at next login. | done |
 | A-05 | Enabling or disabling a row updates optimistically, then reconciles with the server. | done |
 | A-06 | Name search is debounced by 300 ms. | done |
