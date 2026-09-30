@@ -128,3 +128,21 @@ export interface PendingVerification {
   /** Present only where the server is not really sending mail. */
   code?: string;
 }
+
+export interface UpcomingOccurrence {
+  alarmId: string;
+  alarmName: string;
+  folderId: string;
+  folderName: string;
+  timezone: string;
+  note: string | null;
+  utc: string;
+  local: string;
+}
+
+export interface UpcomingList {
+  items: UpcomingOccurrence[];
+  /** The server's idea of now, so a client can measure its own drift. */
+  now: string;
+  withinMinutes: number;
+}

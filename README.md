@@ -173,6 +173,33 @@ setting rather than a default. Under `docker compose`, mail goes to a container
 on the same network and nothing leaves the machine; only a deployment pointed at
 a real provider makes an outbound call.
 
+## Desktop notifications
+
+While the app is open in a tab, alarms raise native notifications on Windows and
+macOS. The page polls `GET /me/upcoming` every 30 seconds, sets a timer for
+anything due within the next two minutes, and fires it.
+
+This is **not** push. Nothing arrives once the browser is closed. Real push would
+need a service worker and a server awake around the clock, which a free instance
+that sleeps after fifteen minutes cannot be.
+
+The controls live on the folder list. Permission is requested from a button
+rather than on load, because browsers ignore the request otherwise, and there is
+a "send a test notification" button so a person can confirm it works without
+waiting for an alarm.
+
+For tests, `notification-permission-state` carries the state as data attributes:
+
+```
+data-permission="granted|denied|default|unsupported"
+data-active="true|false"
+data-upcoming-count="3"
+```
+
+Occurrences that have already fired are remembered in `localStorage`, keyed by
+alarm and instant, so a reload cannot repeat them. Entries older than a day are
+pruned.
+
 ## Error shape
 
 Every non-2xx response uses one envelope:
@@ -204,6 +231,7 @@ Every non-2xx response uses one envelope:
 | GET | `/alarms/{id}/occurrences` | `from`, `to`, `limit`. `to - from` may not exceed 366 days. |
 | GET/PUT/DELETE | `/me/alarm-draft` | The wizard draft (A-03). |
 | GET/PUT | `/me/ui-state` | Folder filter and sort order (A-04). |
+| GET | `/me/upcoming` | Occurrences due soon across every enabled alarm, for the notification scheduler. |
 | GET | `/health` | Always mounted, whatever `TEST_SUPPORT` is set to (T-04). |
 | GET | `/openapi.json` | OpenAPI 3.1, generated from the schemas the server validates with. |
 | POST | `/test/reset` | T-01. `{ "profile": "empty" \| "demo" }`, default `demo`. |

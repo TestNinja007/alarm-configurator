@@ -44,8 +44,12 @@ export async function seed(profile: SeedProfile = 'demo'): Promise<void> {
 
     for (const [index, user] of SEED_USERS.entries()) {
       await client.query(
-        `INSERT INTO users (id, external_key, email, name, password_hash, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $6)`,
+        // email_verified_at is set here on purpose: these accounts exist to be
+        // signed into and have no inbox, so leaving them unverified would make
+        // every seeded login fail.
+        `INSERT INTO users (id, external_key, email, name, password_hash,
+                            email_verified_at, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $6, $6)`,
         [user.id, user.externalKey, user.email, user.name, hashes[index], createdAt],
       );
     }
