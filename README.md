@@ -134,8 +134,14 @@ All three arrive together or none does; a partial set is 422 on `repeatEvery`.
 wrap past midnight, because one that did would make it ambiguous which day an
 occurrence belonged to.
 
-It composes with every rule type, so "every 15 minutes between 09:00 and 17:00
-on weekdays" is a weekly rule plus a window. The walk is inclusive of both ends:
+In the wizard both live on the Repetition step, one under the other: **Repeats**
+chooses which days, **Repeat during each day** chooses the times on them. They
+were split across two steps at first, which sent people hunting for "every N
+minutes" in the rule list where only days, weeks and months appear.
+
+They stay two controls rather than one merged list, because merging them would
+make "every 15 minutes between 09:00 and 17:00 **on weekdays**" impossible to
+express. The walk is inclusive of both ends:
 09:00 to 09:10 every 5 minutes gives 09:00, 09:05 and 09:10. A step that would
 overshoot simply stops early.
 

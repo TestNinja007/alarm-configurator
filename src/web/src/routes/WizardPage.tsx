@@ -219,13 +219,15 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
       if (form.endMode === 'count' && !form.endAfterOccurrences) {
         problems.endAfterOccurrences = 'Say how many times it should fire.';
       }
+    }
+
+    if (which === 3) {
+      if (form.rule.type === 'weekly' && form.rule.byWeekday.length === 0) {
+        problems.byWeekday = 'Choose at least one weekday.';
+      }
       if (form.repeatWithinDay && form.endTimeOfDay <= form.timeOfDay) {
         problems.endTimeOfDay = 'The window must end later in the day than it starts.';
       }
-    }
-
-    if (which === 3 && form.rule.type === 'weekly' && form.rule.byWeekday.length === 0) {
-      problems.byWeekday = 'Choose at least one weekday.';
     }
 
     return problems;
@@ -374,95 +376,6 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
               />
             </div>
 
-            <fieldset className="fieldset" data-testid="alarm-repeat-window-fieldset">
-              <legend>Repeat during the day</legend>
-              <label className="radio-row">
-                <input
-                  type="checkbox"
-                  checked={form.repeatWithinDay}
-                  onChange={(event) => update({ repeatWithinDay: event.target.checked })}
-                  data-testid="alarm-repeat-within-day-checkbox"
-                />
-                Repeat every so often between two times
-              </label>
-
-              {form.repeatWithinDay ? (
-                <>
-                  <div className="field">
-                    <label htmlFor="alarm-repeat-every">Every</label>
-                    <input
-                      id="alarm-repeat-every"
-                      type="number"
-                      min={1}
-                      max={1440}
-                      value={form.repeatEvery}
-                      onChange={(event) => update({ repeatEvery: event.target.value })}
-                      aria-describedby={
-                        fieldError('repeatEvery') ? 'alarm-repeat-every-error' : undefined
-                      }
-                      data-testid="alarm-repeat-every-input"
-                    />
-                    {fieldError('repeatEvery') ? (
-                      <p
-                        id="alarm-repeat-every-error"
-                        className="field-error"
-                        data-testid="alarm-repeat-every-error"
-                      >
-                        {fieldError('repeatEvery')}
-                      </p>
-                    ) : null}
-                  </div>
-
-                  <div className="field">
-                    <label htmlFor="alarm-repeat-unit">Unit</label>
-                    <select
-                      id="alarm-repeat-unit"
-                      value={form.repeatUnit}
-                      onChange={(event) =>
-                        update({
-                          repeatUnit: event.target.value as 'seconds' | 'minutes' | 'hours',
-                        })
-                      }
-                      data-testid="alarm-repeat-unit-select"
-                    >
-                      <option value="seconds">Seconds</option>
-                      <option value="minutes">Minutes</option>
-                      <option value="hours">Hours</option>
-                    </select>
-                  </div>
-
-                  <div className="field">
-                    <label htmlFor="alarm-end-time">Until</label>
-                    <input
-                      id="alarm-end-time"
-                      type="time"
-                      value={form.endTimeOfDay}
-                      onChange={(event) => update({ endTimeOfDay: event.target.value })}
-                      aria-invalid={fieldError('endTimeOfDay') ? true : undefined}
-                      aria-describedby={
-                        fieldError('endTimeOfDay') ? 'alarm-end-time-error' : undefined
-                      }
-                      data-testid="alarm-end-time-input"
-                    />
-                    {fieldError('endTimeOfDay') ? (
-                      <p
-                        id="alarm-end-time-error"
-                        className="field-error"
-                        data-testid="alarm-end-time-error"
-                      >
-                        {fieldError('endTimeOfDay')}
-                      </p>
-                    ) : null}
-                  </div>
-
-                  <p className="field-hint" data-testid="alarm-repeat-window-hint">
-                    The alarm starts at {form.timeOfDay} and repeats until {form.endTimeOfDay},
-                    on every day the repetition rule selects.
-                  </p>
-                </>
-              ) : null}
-            </fieldset>
-
             <fieldset className="fieldset">
               <legend>Ends</legend>
               {(['never', 'date', 'count'] as const).map((value) => (
@@ -545,7 +458,9 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
           </>
         ) : null}
 
-        {step === 3 ? <RepetitionStep form={form} update={update} error={error} /> : null}
+        {step === 3 ? (
+          <RepetitionStep form={form} update={update} error={error} fieldError={fieldError} />
+        ) : null}
 
         {step === 4 ? (
           <>
@@ -686,12 +601,25 @@ function RepetitionStep({
   form,
   update,
   error,
+  fieldError,
 }: {
   form: WizardForm;
   update: (patch: Partial<WizardForm>) => void;
   error?: ApiError;
+  fieldError: (field: string) => string | undefined;
 }) {
   const rule = form.rule;
+
+  /**
+   * How often it repeats *within* a day, as one select rather than a checkbox
+   * on an earlier step.
+   *
+   * It sits here because this is where people look for "every N minutes": the
+   * rule above chooses which days, this chooses the times on them. Keeping it
+   * separate rather than folding the sub-day units into the rule list is what
+   * lets "every 30 minutes, on weekdays" exist at all.
+   */
+  const withinDay = form.repeatWithinDay ? form.repeatUnit : 'none';
 
   function setType(type: Rule['type']) {
     switch (type) {
@@ -730,6 +658,92 @@ function RepetitionStep({
           <option value="interval">Every N days, weeks or months</option>
         </select>
       </div>
+
+      <div className="field">
+        <label htmlFor="alarm-within-day">Repeat during each day</label>
+        <select
+          id="alarm-within-day"
+          value={withinDay}
+          onChange={(event) =>
+            update(
+              event.target.value === 'none'
+                ? { repeatWithinDay: false }
+                : {
+                    repeatWithinDay: true,
+                    repeatUnit: event.target.value as 'seconds' | 'minutes' | 'hours',
+                  },
+            )
+          }
+          data-testid="alarm-within-day-select"
+        >
+          <option value="none">Only once a day, at the start time</option>
+          <option value="seconds">Every N seconds</option>
+          <option value="minutes">Every N minutes</option>
+          <option value="hours">Every N hours</option>
+        </select>
+      </div>
+
+      {form.repeatWithinDay ? (
+        <>
+          <div className="field">
+            <label htmlFor="alarm-repeat-every">Every</label>
+            <input
+              id="alarm-repeat-every"
+              type="number"
+              min={1}
+              max={1440}
+              value={form.repeatEvery}
+              onChange={(event) => update({ repeatEvery: event.target.value })}
+              aria-invalid={fieldError('repeatEvery') ? true : undefined}
+              aria-describedby={fieldError('repeatEvery') ? 'alarm-repeat-every-error' : undefined}
+              data-testid="alarm-repeat-every-input"
+            />
+            {fieldError('repeatEvery') ? (
+              <p
+                id="alarm-repeat-every-error"
+                className="field-error"
+                data-testid="alarm-repeat-every-error"
+              >
+                {fieldError('repeatEvery')}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="field">
+            <label htmlFor="alarm-end-time">Until</label>
+            <input
+              id="alarm-end-time"
+              type="time"
+              value={form.endTimeOfDay}
+              onChange={(event) => update({ endTimeOfDay: event.target.value })}
+              aria-invalid={fieldError('endTimeOfDay') ? true : undefined}
+              aria-describedby={
+                fieldError('endTimeOfDay') ? 'alarm-end-time-error' : 'alarm-repeat-window-hint'
+              }
+              data-testid="alarm-end-time-input"
+            />
+            {fieldError('endTimeOfDay') ? (
+              <p
+                id="alarm-end-time-error"
+                className="field-error"
+                data-testid="alarm-end-time-error"
+              >
+                {fieldError('endTimeOfDay')}
+              </p>
+            ) : (
+              <p
+                id="alarm-repeat-window-hint"
+                className="field-hint"
+                data-testid="alarm-repeat-window-hint"
+              >
+                Starts at {form.timeOfDay} and repeats every {form.repeatEvery || 'N'}{' '}
+                {form.repeatUnit} until {form.endTimeOfDay}, on every day the rule above
+                selects.
+              </p>
+            )}
+          </div>
+        </>
+      ) : null}
 
       {rule.type === 'weekly' ? (
         <fieldset className="fieldset" data-testid="alarm-weekday-fieldset">
