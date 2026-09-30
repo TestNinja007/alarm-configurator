@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import * as Dialog from '@radix-ui/react-dialog';
 import { useNavigate } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
+import { PasswordField } from './PasswordField';
 
 /**
  * Deleting an account is irreversible and takes every folder and alarm with
@@ -79,24 +80,14 @@ export function DeleteAccount() {
               </p>
             ) : null}
 
-            <div className="field">
-              <label htmlFor="delete-account-password">Password</label>
-              <input
-                id="delete-account-password"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                aria-invalid={error ? true : undefined}
-                aria-describedby={error ? 'delete-account-error-text' : undefined}
-                data-testid="delete-account-password-input"
-              />
-              {error ? (
-                <p id="delete-account-error-text" className="field-error">
-                  {error.message}
-                </p>
-              ) : null}
-            </div>
+            <PasswordField
+              id="delete-account-password"
+              label="Password"
+              value={password}
+              onChange={setPassword}
+              autoComplete="current-password"
+              testId="delete-account-password-input"
+            />
 
             <div className="dialog-actions">
               <Dialog.Close asChild>
