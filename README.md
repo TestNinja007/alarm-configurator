@@ -132,7 +132,38 @@ you in for the first time.
 | Resend | Issues a new code and invalidates the previous one |
 
 Email comparison is case-insensitive and the name is trimmed, matching the rest
-of the application. There is still **no password reset**, and the form says so.
+of the application.
+
+### Resetting a forgotten password
+
+`POST /auth/forgot-password` emails a six-digit code;
+`POST /auth/reset-password` accepts it, sets the new password and signs in.
+
+| Case | Response |
+| --- | --- |
+| Unknown address | 200, **identical** to a real one — this is not an address checker |
+| Address that never confirmed its email | 200, and no code is issued; there is nothing to reset into |
+| Wrong code | 422 on `code` |
+| Wrong code, 5 times | 429 — the correct code is refused too until a new one is issued |
+| Code older than 15 minutes | 422 on `code`, code `expired` |
+| Reusing a spent code | 422 — single use |
+| New password containing the address | 422, the same rule as registration |
+| More than 5 requests for one address in 15 minutes | 429 |
+
+**Every existing session for the account is destroyed on a successful reset.**
+Somebody resetting a password may be doing it precisely because another party
+has the old one, and leaving that party signed in would defeat the exercise. The
+caller gets a fresh session, since the one it arrived with was among those
+destroyed.
+
+Six digits rather than a long token is only defensible because of the limits
+around it: fifteen minutes, five attempts, single use, and a new code replaces
+the old one.
+
+One caveat for a sandbox: where `MAIL_TRANSPORT` is not really sending, the
+response carries the code, and its presence reveals whether the address has an
+account. Wherever mail is genuinely sent — which is every deployment — no code
+is returned and the two answers are identical.
 
 ### Deleting an account
 
@@ -255,6 +286,8 @@ Every non-2xx response uses one envelope:
 | POST | `/auth/register` | Creates an unverified account and emails a code. No session. 404 unless `REGISTRATION_OPEN=1`. |
 | POST | `/auth/verify` | Confirms the code and signs in. |
 | POST | `/auth/resend-verification` | Issues a fresh code, invalidating the previous one. |
+| POST | `/auth/forgot-password` | Emails a reset code. Answers identically for an unknown address. |
+| POST | `/auth/reset-password` | Sets a new password and signs in, destroying every other session. |
 | POST | `/auth/login`, `/auth/logout` | |
 | GET | `/auth/me` | Returns the user and the CSRF token. |
 | GET/POST | `/folders` | |
@@ -276,7 +309,8 @@ Every non-2xx response uses one envelope:
 | POST | `/test/reset` | T-01. `{ "profile": "empty" \| "demo" }`, default `demo`. |
 | GET/PUT | `/test/clock` | T-02. `{ "now": "..." }` pins it, `{ "mode": "system" }` releases it. |
 | POST | `/test/users` | T-03. Returns a throwaway account's credentials. |
-| GET | `/test/verification-code` | The outstanding code for an address. |
+| GET | `/test/verification-code` | The outstanding email-confirmation code for an address. |
+| GET | `/test/password-reset-code` | The outstanding password reset code for an address. |
 | GET/DELETE | `/test/mail` | Messages held by the `capture` transport. |
 
 Occurrence windows are inclusive at both ends: an occurrence at exactly `from`,

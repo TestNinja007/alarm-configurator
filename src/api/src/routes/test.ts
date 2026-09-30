@@ -7,6 +7,7 @@ import { clock } from '../clock.js';
 import { query } from '../db/pool.js';
 import { validationError } from '../errors.js';
 import { peekCode } from '../auth/verification.js';
+import { peekResetCode } from '../auth/passwordReset.js';
 import { capturedMessages, clearCapturedMessages } from '../mail/mailer.js';
 import { queryOne } from '../db/pool.js';
 import { notFound } from '../errors.js';
@@ -74,6 +75,34 @@ export async function testRoutes(app: FastifyInstance): Promise<void> {
 
       const code = await peekCode(row.id);
       if (!code) throw notFound('Verification code');
+
+      return { email: request.query.email, code };
+    },
+  );
+
+  app.get<{ Querystring: { email: string } }>(
+    '/test/password-reset-code',
+    {
+      schema: {
+        summary: 'The outstanding password reset code for an address',
+        description: 'Only available when TEST_SUPPORT=1.',
+        tags: ['test-support'],
+        querystring: Type.Object({ email: Type.String({ minLength: 3, maxLength: 254 }) }),
+        response: {
+          200: Type.Object({ email: Type.String(), code: Type.String() }),
+          ...errorResponses,
+        },
+      },
+    },
+    async (request) => {
+      const row = await queryOne<{ id: string }>(
+        'SELECT id FROM users WHERE lower(btrim(email)) = lower(btrim($1))',
+        [request.query.email],
+      );
+      if (!row) throw notFound('Account');
+
+      const code = await peekResetCode(row.id);
+      if (!code) throw notFound('Reset code');
 
       return { email: request.query.email, code };
     },

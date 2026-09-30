@@ -6,7 +6,9 @@ import { DemoBanner } from './components/DemoBanner';
 import { AlarmsPage } from './routes/AlarmsPage';
 import { FoldersPage } from './routes/FoldersPage';
 import { LoginPage } from './routes/LoginPage';
+import { ForgotPasswordPage } from './routes/ForgotPasswordPage';
 import { RegisterPage } from './routes/RegisterPage';
+import { ResetPasswordPage } from './routes/ResetPasswordPage';
 import { VerifyPage } from './routes/VerifyPage';
 import { WizardPage } from './routes/WizardPage';
 
@@ -72,6 +74,24 @@ export function App() {
       );
     }
 
+    if (location.pathname === '/forgot-password') {
+      return (
+        <>
+          <DemoBanner />
+          <ForgotPasswordPage />
+        </>
+      );
+    }
+
+    if (location.pathname === '/reset-password') {
+      return (
+        <>
+          <DemoBanner />
+          <ResetPasswordPage />
+        </>
+      );
+    }
+
     if (location.pathname === '/verify') {
       return (
         <>
@@ -100,6 +120,8 @@ export function App() {
         <Route path="/login" element={<Navigate to="/folders" replace />} />
         <Route path="/register" element={<Navigate to="/folders" replace />} />
         <Route path="/verify" element={<Navigate to="/folders" replace />} />
+        <Route path="/forgot-password" element={<Navigate to="/folders" replace />} />
+        <Route path="/reset-password" element={<Navigate to="/folders" replace />} />
         <Route path="/folders" element={<FoldersPage />} />
         <Route path="/folders/:folderId" element={<AlarmsPage />} />
         <Route path="/folders/:folderId/alarms/new" element={<WizardPage mode="create" />} />

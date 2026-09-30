@@ -87,6 +87,12 @@ export function LoginPage() {
           {login.isPending ? 'Signing in…' : 'Sign in'}
         </button>
 
+        <p className="form-footer">
+          <Link to="/forgot-password" data-testid="forgot-password-link">
+            Forgotten your password?
+          </Link>
+        </p>
+
         {health.data?.registrationOpen ? (
           <p className="form-footer">
             No account yet?{' '}

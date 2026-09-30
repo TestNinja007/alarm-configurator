@@ -22,15 +22,26 @@ import {
   type RegisterBody,
 } from '../schemas/auth.js';
 import { errorResponses } from '../schemas/common.js';
-import { consumeLoginAttempt, clearLoginAttempts, consumeRegistration } from '../auth/rateLimit.js';
+import {
+  consumeLoginAttempt,
+  clearLoginAttempts,
+  consumeRegistration,
+  consumePasswordReset,
+} from '../auth/rateLimit.js';
+import { issueResetCode, resetPassword, RESET_TTL_MINUTES } from '../auth/passwordReset.js';
 import { issueCode, verifyCode, CODE_TTL_MINUTES } from '../auth/verification.js';
 import { deliversExternally } from '../mail/mailer.js';
-import { sendVerificationCode } from '../mail/messages.js';
+import { sendPasswordResetCode, sendVerificationCode } from '../mail/messages.js';
 import {
   PendingVerificationSchema,
+  ForgotPasswordBodySchema,
+  PasswordResetIssuedSchema,
   ResendVerificationBodySchema,
+  ResetPasswordBodySchema,
   VerifyEmailBodySchema,
+  type ForgotPasswordBody,
   type ResendVerificationBody,
+  type ResetPasswordBody,
   type VerifyEmailBody,
 } from '../schemas/auth.js';
 
@@ -259,6 +270,129 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         emailSent,
         expiresAt: issued.expiresAt.toISOString(),
         code: deliversExternally() ? undefined : issued.code,
+      };
+    },
+  );
+
+
+  app.post<{ Body: ForgotPasswordBody }>(
+    '/auth/forgot-password',
+    {
+      schema: {
+        summary: 'Ask for a password reset code',
+        description:
+          'Answers the same way whether or not the address has an account, so it ' +
+          'cannot be used to discover which addresses are registered.',
+        tags: ['auth'],
+        body: ForgotPasswordBodySchema,
+        response: { 200: PasswordResetIssuedSchema, ...errorResponses },
+      },
+    },
+    async (request) => {
+      const email = request.body.email.trim();
+
+      if (!consumePasswordReset(email)) {
+        throw new AppError('rate_limited', 'Too many reset requests for this address.');
+      }
+
+      const row = await queryOne<{ id: string; name: string; email_verified_at: Date | null }>(
+        `SELECT id, name, email_verified_at
+           FROM users WHERE lower(btrim(email)) = lower(btrim($1))`,
+        [email],
+      );
+
+      const expiresAt = new Date(clock.now().getTime() + RESET_TTL_MINUTES * 60 * 1000);
+
+      // An unknown address, and one that never confirmed its email, both get
+      // the same answer as a real one. An unconfirmed account has nothing to
+      // reset into, since it cannot sign in either way.
+      if (!row || !row.email_verified_at) {
+        return { email, expiresAt: expiresAt.toISOString(), emailSent: true };
+      }
+
+      const issued = await issueResetCode(row.id);
+
+      let emailSent = true;
+      try {
+        await sendPasswordResetCode({ to: email, name: row.name, code: issued.code });
+      } catch (error) {
+        emailSent = false;
+        request.log.error({ err: error, email }, 'Password reset email could not be sent');
+      }
+
+      return {
+        email,
+        expiresAt: issued.expiresAt.toISOString(),
+        emailSent,
+        code: deliversExternally() ? undefined : issued.code,
+      };
+    },
+  );
+
+  app.post<{ Body: ResetPasswordBody }>(
+    '/auth/reset-password',
+    {
+      schema: {
+        summary: 'Set a new password using a reset code',
+        description: 'Every existing session for the account is destroyed.',
+        tags: ['auth'],
+        body: ResetPasswordBodySchema,
+        response: { 200: SessionSchema, ...errorResponses },
+      },
+    },
+    async (request, reply) => {
+      const email = request.body.email.trim();
+
+      const row = await queryOne<{ id: string; email: string; name: string }>(
+        'SELECT id, email, name FROM users WHERE lower(btrim(email)) = lower(btrim($1))',
+        [email],
+      );
+
+      const wrongCode = () =>
+        validationError([
+          { field: 'code', code: 'incorrect', message: 'That code is not correct.' },
+        ]);
+
+      // A password that contains the address is rejected here as it is at
+      // registration, so the rule cannot be sidestepped by resetting.
+      if (request.body.password.toLowerCase().includes(email.toLowerCase())) {
+        throw validationError([
+          {
+            field: 'password',
+            code: 'too_similar',
+            message: 'The password must not contain your email address.',
+          },
+        ]);
+      }
+
+      if (!row) throw wrongCode();
+
+      const result = await resetPassword(row.id, request.body.code, request.body.password);
+
+      if (!result.ok) {
+        switch (result.reason) {
+          case 'expired':
+          case 'no_code':
+            throw validationError([
+              { field: 'code', code: 'expired', message: 'That code has expired. Ask for a new one.' },
+            ]);
+          case 'too_many_attempts':
+            throw new AppError('rate_limited', 'Too many incorrect codes. Ask for a new one.');
+          default:
+            throw wrongCode();
+        }
+      }
+
+      // Every old session was just destroyed, including any this request
+      // arrived with, so a fresh one is issued.
+      const session = await createSession(row.id);
+      reply
+        .setCookie(SESSION_COOKIE, session.id, { ...cookieOptions, httpOnly: true })
+        .setCookie(CSRF_COOKIE, session.csrfToken, { ...cookieOptions, httpOnly: false });
+
+      return {
+        user: { id: row.id, email: row.email, name: row.name },
+        csrfToken: session.csrfToken,
       };
     },
   );
