@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
 import type { Session } from '../api/types';
+import { PasswordField } from '../components/PasswordField';
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -62,19 +63,14 @@ export function LoginPage() {
           />
         </div>
 
-        <div className="field">
-          <label htmlFor="login-password">Password</label>
-          <input
-            id="login-password"
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            aria-describedby={error ? 'login-error-text' : undefined}
-            data-testid="login-password-input"
-          />
-        </div>
+        <PasswordField
+          id="login-password"
+          label="Password"
+          value={password}
+          onChange={setPassword}
+          autoComplete="current-password"
+          testId="login-password-input"
+        />
 
         {error ? (
           <p id="login-error-text" className="field-error">

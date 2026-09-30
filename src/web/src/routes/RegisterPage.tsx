@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
 import type { PendingVerification } from '../api/types';
+import { PasswordField } from '../components/PasswordField';
 
 /**
  * Registration signs the new account straight in, so there is no second step to
@@ -92,37 +93,16 @@ export function RegisterPage() {
           ) : null}
         </div>
 
-        <div className="field">
-          <label htmlFor="register-password">Password</label>
-          <input
-            id="register-password"
-            name="password"
-            type="password"
-            autoComplete="new-password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            aria-invalid={passwordError ? true : undefined}
-            aria-describedby={
-              passwordError ? 'register-password-error' : 'register-password-hint'
-            }
-            data-testid="register-password-input"
-          />
-          {passwordError ? (
-            <p
-              id="register-password-error"
-              className="field-error"
-              data-testid="register-password-error"
-            >
-              {passwordError}
-            </p>
-          ) : (
-            <p id="register-password-hint" className="field-hint" data-testid="register-password-hint">
-              At least 10 characters. There is no password reset on this instance, so
-              use something you will remember. We will email you a code to confirm the
-              address.
-            </p>
-          )}
-        </div>
+        <PasswordField
+          id="register-password"
+          label="Password"
+          value={password}
+          onChange={setPassword}
+          autoComplete="new-password"
+          testId="register-password-input"
+          error={passwordError}
+          hint="At least 10 characters. There is no password reset on this instance, so use something you will remember. We will email you a code to confirm the address."
+        />
 
         <button
           type="submit"
