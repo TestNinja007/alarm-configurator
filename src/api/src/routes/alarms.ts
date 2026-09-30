@@ -28,7 +28,7 @@ import { IdParamsSchema, errorResponses, type IdParams } from '../schemas/common
 
 const ALARM_COLUMNS = `
   a.id, a.folder_id, a.name, a.note, a.enabled, a.time_of_day, a.timezone,
-  a.start_date, a.end_date, a.end_after_occurrences,
+  a.start_date, a.end_date, a.end_time, a.end_after_occurrences,
   a.end_time_of_day, a.repeat_every, a.repeat_unit,
   a.rule, a.created_at, a.updated_at
 `;
@@ -214,6 +214,7 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
           timezone,
           startDate: request.body.startDate,
           endDate: request.body.endDate ?? null,
+          endTime: request.body.endTime ?? null,
           endAfterOccurrences: request.body.endAfterOccurrences ?? null,
           endTimeOfDay: request.body.endTimeOfDay ?? null,
           repeatEvery: request.body.repeatEvery ?? null,
@@ -228,10 +229,10 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
       try {
         await query(
           `INSERT INTO alarms (id, folder_id, name, note, enabled, time_of_day, timezone,
-                               start_date, end_date, end_after_occurrences,
+                               start_date, end_date, end_time, end_after_occurrences,
                                end_time_of_day, repeat_every, repeat_unit, rule,
                                created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $15)`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $16)`,
           [
             id,
             request.body.folderId,
@@ -242,6 +243,7 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
             timezone,
             request.body.startDate,
             request.body.endDate ?? null,
+            request.body.endTime ?? null,
             request.body.endAfterOccurrences ?? null,
             request.body.endTimeOfDay ?? null,
             request.body.repeatEvery ?? null,
@@ -305,6 +307,7 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
             timezone,
             startDate: request.body.startDate,
             endDate: request.body.endDate ?? null,
+            endTime: request.body.endTime ?? null,
             endAfterOccurrences: request.body.endAfterOccurrences ?? null,
             endTimeOfDay: request.body.endTimeOfDay ?? null,
             repeatEvery: request.body.repeatEvery ?? null,
@@ -319,10 +322,11 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
         await query(
           `UPDATE alarms
               SET folder_id = $1, name = $2, note = $3, time_of_day = $4, timezone = $5,
-                  start_date = $6, end_date = $7, end_after_occurrences = $8,
-                  end_time_of_day = $9, repeat_every = $10, repeat_unit = $11,
-                  rule = $12, updated_at = $13
-            WHERE id = $14`,
+                  start_date = $6, end_date = $7, end_time = $8,
+                  end_after_occurrences = $9, end_time_of_day = $10,
+                  repeat_every = $11, repeat_unit = $12,
+                  rule = $13, updated_at = $14
+            WHERE id = $15`,
           [
             request.body.folderId,
             request.body.name.trim(),
@@ -331,6 +335,7 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
             timezone,
             request.body.startDate,
             request.body.endDate ?? null,
+            request.body.endTime ?? null,
             request.body.endAfterOccurrences ?? null,
             request.body.endTimeOfDay ?? null,
             request.body.repeatEvery ?? null,

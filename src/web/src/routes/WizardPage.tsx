@@ -34,6 +34,7 @@ interface WizardForm {
   startDate: string;
   endMode: 'never' | 'date' | 'count';
   endDate: string;
+  endTime: string;
   endAfterOccurrences: string;
   repeatWithinDay: boolean;
   endTimeOfDay: string;
@@ -52,6 +53,7 @@ function emptyForm(folderId: string): WizardForm {
     startDate: new Date().toISOString().slice(0, 10),
     endMode: 'never',
     endDate: '',
+    endTime: '',
     endAfterOccurrences: '',
     repeatWithinDay: false,
     endTimeOfDay: '17:00',
@@ -71,6 +73,7 @@ function formFromAlarm(alarm: Alarm): WizardForm {
     startDate: alarm.startDate,
     endMode: alarm.endDate ? 'date' : alarm.endAfterOccurrences ? 'count' : 'never',
     endDate: alarm.endDate ?? '',
+    endTime: alarm.endTime ?? '',
     endAfterOccurrences: alarm.endAfterOccurrences?.toString() ?? '',
     repeatWithinDay: Boolean(alarm.endTimeOfDay && alarm.repeatEvery && alarm.repeatUnit),
     endTimeOfDay: alarm.endTimeOfDay ?? '17:00',
@@ -90,6 +93,7 @@ function toPayload(form: WizardForm) {
     timezone: form.timezone,
     startDate: form.startDate,
     endDate: form.endMode === 'date' && form.endDate ? form.endDate : null,
+    endTime: form.endMode === 'date' && form.endDate && form.endTime ? form.endTime : null,
     endAfterOccurrences:
       form.endMode === 'count' && form.endAfterOccurrences
         ? Number.parseInt(form.endAfterOccurrences, 10)
@@ -115,6 +119,8 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
   /** What the alarm looked like when it loaded, so an edit knows if it changed. */
   const [original, setOriginal] = useState<WizardForm | undefined>();
   const [confirmingCancel, setConfirmingCancel] = useState(false);
+  /** Set when Next is pressed with something missing on the current step. */
+  const [stepErrors, setStepErrors] = useState<Record<string, string>>({});
 
   const existing = useQuery({
     queryKey: ['alarm', alarmId],
@@ -186,7 +192,44 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
   });
 
   const error = submit.error instanceof ApiError ? submit.error : undefined;
+  /** A local complaint takes precedence: it is about what is on screen now. */
+  const fieldError = (field: string) => stepErrors[field] ?? error?.fieldError(field);
   const update = (patch: Partial<WizardForm>) => setForm((current) => ({ ...current, ...patch }));
+
+  /**
+   * What the current step needs before it can be left.
+   *
+   * The server validates all of this again on submit — this only stops
+   * someone reaching the review step with an empty name and being told about
+   * it three screens later.
+   */
+  function problemsWithStep(which: number): Record<string, string> {
+    const problems: Record<string, string> = {};
+
+    if (which === 1 && form.name.trim().length === 0) {
+      problems.name = 'Give the alarm a name.';
+    }
+
+    if (which === 2) {
+      if (!form.timeOfDay) problems.timeOfDay = 'Choose a time of day.';
+      if (!form.startDate) problems.startDate = 'Choose a start date.';
+      if (form.endMode === 'date' && !form.endDate) {
+        problems.endDate = 'Choose the date the alarm should stop.';
+      }
+      if (form.endMode === 'count' && !form.endAfterOccurrences) {
+        problems.endAfterOccurrences = 'Say how many times it should fire.';
+      }
+      if (form.repeatWithinDay && form.endTimeOfDay <= form.timeOfDay) {
+        problems.endTimeOfDay = 'The window must end later in the day than it starts.';
+      }
+    }
+
+    if (which === 3 && form.rule.type === 'weekly' && form.rule.byWeekday.length === 0) {
+      problems.byWeekday = 'Choose at least one weekday.';
+    }
+
+    return problems;
+  }
 
   const folderPath = `/folders/${form.folderId}`;
 
@@ -204,6 +247,16 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
   }
 
   function goTo(next: number) {
+    // Going back is always allowed; only going forward is gated.
+    if (next > step) {
+      const problems = problemsWithStep(step);
+      if (Object.keys(problems).length > 0) {
+        setStepErrors(problems);
+        return;
+      }
+    }
+
+    setStepErrors({});
     setStep(next);
     // The draft is written on every step transition, not only at the end.
     if (mode === 'create') saveDraft.mutate({ step: next, payload: form });
@@ -243,13 +296,13 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
                 value={form.name}
                 maxLength={80}
                 onChange={(event) => update({ name: event.target.value })}
-                aria-invalid={error?.fieldError('name') ? true : undefined}
-                aria-describedby={error?.fieldError('name') ? 'alarm-name-error' : undefined}
+                aria-invalid={fieldError('name') ? true : undefined}
+                aria-describedby={fieldError('name') ? 'alarm-name-error' : undefined}
                 data-testid="alarm-name-input"
               />
-              {error?.fieldError('name') ? (
+              {fieldError('name') ? (
                 <p id="alarm-name-error" className="field-error" data-testid="alarm-name-error">
-                  {error.fieldError('name')}
+                  {fieldError('name')}
                 </p>
               ) : null}
             </div>
@@ -276,13 +329,13 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
                 type="time"
                 value={form.timeOfDay}
                 onChange={(event) => update({ timeOfDay: event.target.value })}
-                aria-invalid={error?.fieldError('timeOfDay') ? true : undefined}
-                aria-describedby={error?.fieldError('timeOfDay') ? 'alarm-time-error' : undefined}
+                aria-invalid={fieldError('timeOfDay') ? true : undefined}
+                aria-describedby={fieldError('timeOfDay') ? 'alarm-time-error' : undefined}
                 data-testid="alarm-time-input"
               />
-              {error?.fieldError('timeOfDay') ? (
+              {fieldError('timeOfDay') ? (
                 <p id="alarm-time-error" className="field-error" data-testid="alarm-time-error">
-                  {error.fieldError('timeOfDay')}
+                  {fieldError('timeOfDay')}
                 </p>
               ) : null}
             </div>
@@ -294,8 +347,8 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
                 list="timezone-options"
                 value={form.timezone}
                 onChange={(event) => update({ timezone: event.target.value })}
-                aria-invalid={error?.fieldError('timezone') ? true : undefined}
-                aria-describedby={error?.fieldError('timezone') ? 'alarm-timezone-error' : undefined}
+                aria-invalid={fieldError('timezone') ? true : undefined}
+                aria-describedby={fieldError('timezone') ? 'alarm-timezone-error' : undefined}
                 data-testid="alarm-timezone-input"
               />
               <datalist id="timezone-options">
@@ -303,9 +356,9 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
                   <option key={zone} value={zone} />
                 ))}
               </datalist>
-              {error?.fieldError('timezone') ? (
+              {fieldError('timezone') ? (
                 <p id="alarm-timezone-error" className="field-error" data-testid="alarm-timezone-error">
-                  {error.fieldError('timezone')}
+                  {fieldError('timezone')}
                 </p>
               ) : null}
             </div>
@@ -345,17 +398,17 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
                       value={form.repeatEvery}
                       onChange={(event) => update({ repeatEvery: event.target.value })}
                       aria-describedby={
-                        error?.fieldError('repeatEvery') ? 'alarm-repeat-every-error' : undefined
+                        fieldError('repeatEvery') ? 'alarm-repeat-every-error' : undefined
                       }
                       data-testid="alarm-repeat-every-input"
                     />
-                    {error?.fieldError('repeatEvery') ? (
+                    {fieldError('repeatEvery') ? (
                       <p
                         id="alarm-repeat-every-error"
                         className="field-error"
                         data-testid="alarm-repeat-every-error"
                       >
-                        {error.fieldError('repeatEvery')}
+                        {fieldError('repeatEvery')}
                       </p>
                     ) : null}
                   </div>
@@ -385,19 +438,19 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
                       type="time"
                       value={form.endTimeOfDay}
                       onChange={(event) => update({ endTimeOfDay: event.target.value })}
-                      aria-invalid={error?.fieldError('endTimeOfDay') ? true : undefined}
+                      aria-invalid={fieldError('endTimeOfDay') ? true : undefined}
                       aria-describedby={
-                        error?.fieldError('endTimeOfDay') ? 'alarm-end-time-error' : undefined
+                        fieldError('endTimeOfDay') ? 'alarm-end-time-error' : undefined
                       }
                       data-testid="alarm-end-time-input"
                     />
-                    {error?.fieldError('endTimeOfDay') ? (
+                    {fieldError('endTimeOfDay') ? (
                       <p
                         id="alarm-end-time-error"
                         className="field-error"
                         data-testid="alarm-end-time-error"
                       >
-                        {error.fieldError('endTimeOfDay')}
+                        {fieldError('endTimeOfDay')}
                       </p>
                     ) : null}
                   </div>
@@ -435,16 +488,35 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
                   type="date"
                   value={form.endDate}
                   onChange={(event) => update({ endDate: event.target.value })}
-                  aria-invalid={error?.fieldError('endDate') ? true : undefined}
-                  aria-describedby={error?.fieldError('endDate') ? 'alarm-end-date-error' : undefined}
+                  aria-invalid={fieldError('endDate') ? true : undefined}
+                  aria-describedby={fieldError('endDate') ? 'alarm-end-date-error' : undefined}
                   data-testid="alarm-end-date-input"
                 />
                 {/* R-01 arrives from the server attached to endDate. */}
-                {error?.fieldError('endDate') ? (
+                {fieldError('endDate') ? (
                   <p id="alarm-end-date-error" className="field-error" data-testid="alarm-end-date-error">
-                    {error.fieldError('endDate')}
+                    {fieldError('endDate')}
                   </p>
                 ) : null}
+
+                <label htmlFor="alarm-end-time-series">End time (optional)</label>
+                <input
+                  id="alarm-end-time-series"
+                  type="time"
+                  value={form.endTime}
+                  onChange={(event) => update({ endTime: event.target.value })}
+                  aria-describedby="alarm-end-time-series-hint"
+                  data-testid="alarm-end-time-series-input"
+                />
+                <p
+                  id="alarm-end-time-series-hint"
+                  className="field-hint"
+                  data-testid="alarm-end-time-series-hint"
+                >
+                  {form.endTime
+                    ? `Stops at ${form.endTime} on that date.`
+                    : 'Leave blank to run to the end of that day.'}
+                </p>
               </div>
             ) : null}
 
@@ -459,13 +531,13 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
                   value={form.endAfterOccurrences}
                   onChange={(event) => update({ endAfterOccurrences: event.target.value })}
                   aria-describedby={
-                    error?.fieldError('endAfterOccurrences') ? 'alarm-end-count-error' : undefined
+                    fieldError('endAfterOccurrences') ? 'alarm-end-count-error' : undefined
                   }
                   data-testid="alarm-end-count-input"
                 />
-                {error?.fieldError('endAfterOccurrences') ? (
+                {fieldError('endAfterOccurrences') ? (
                   <p id="alarm-end-count-error" className="field-error" data-testid="alarm-end-count-error">
-                    {error.fieldError('endAfterOccurrences')}
+                    {fieldError('endAfterOccurrences')}
                   </p>
                 ) : null}
               </div>
@@ -513,6 +585,8 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
                 timezone: form.timezone,
                 startDate: form.startDate,
                 endDate: form.endMode === 'date' && form.endDate ? form.endDate : null,
+                endTime:
+                  form.endMode === 'date' && form.endDate && form.endTime ? form.endTime : null,
                 endAfterOccurrences:
                   form.endMode === 'count' && form.endAfterOccurrences
                     ? Number.parseInt(form.endAfterOccurrences, 10)
@@ -681,9 +755,9 @@ function RepetitionStep({
               {day}
             </label>
           ))}
-          {error?.fieldError('rule.byWeekday') ? (
+          {error?.fieldError('byWeekday') ?? error?.fieldError('rule.byWeekday') ? (
             <p className="field-error" data-testid="alarm-weekday-error">
-              {error.fieldError('rule.byWeekday')}
+              {error?.fieldError('byWeekday') ?? error?.fieldError('rule.byWeekday')}
             </p>
           ) : null}
         </fieldset>
@@ -785,7 +859,7 @@ function RepetitionStep({
             />
             {error?.fieldError('rule.every') ? (
               <p id="alarm-interval-error" className="field-error" data-testid="alarm-interval-error">
-                {error.fieldError('rule.every')}
+                {error?.fieldError('rule.every')}
               </p>
             ) : null}
           </div>

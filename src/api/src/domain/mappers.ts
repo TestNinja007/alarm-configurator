@@ -12,6 +12,7 @@ export interface AlarmRow {
   timezone: string;
   start_date: string;
   end_date: string | null;
+  end_time: string | null;
   end_after_occurrences: number | null;
   end_time_of_day: string | null;
   repeat_every: number | null;
@@ -41,6 +42,7 @@ export function toAlarm(row: AlarmRow): Alarm {
     timezone: row.timezone,
     startDate: row.start_date,
     endDate: row.end_date,
+    endTime: row.end_time,
     endAfterOccurrences: row.end_after_occurrences,
     endTimeOfDay: row.end_time_of_day,
     repeatEvery: row.repeat_every,
