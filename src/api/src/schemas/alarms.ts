@@ -26,6 +26,7 @@ export const AlarmSchema = Type.Object(
     timezone: Type.String(),
     startDate: DateOnlySchema,
     endDate: Type.Union([DateOnlySchema, Type.Null()]),
+    endTime: Type.Union([TimeOfDaySchema, Type.Null()]),
     endAfterOccurrences: Type.Union([Type.Integer(), Type.Null()]),
     endTimeOfDay: Type.Union([TimeOfDaySchema, Type.Null()]),
     repeatEvery: Type.Union([Type.Integer(), Type.Null()]),
@@ -48,6 +49,8 @@ const scheduleProperties = {
   timezone: Type.Optional(Type.String({ minLength: 1, maxLength: 64 })),
   startDate: DateOnlySchema,
   endDate: Type.Optional(Type.Union([DateOnlySchema, Type.Null()])),
+  /** An optional time on endDate, ending the series at a precise instant. */
+  endTime: Type.Optional(Type.Union([TimeOfDaySchema, Type.Null()])),
   endAfterOccurrences: Type.Optional(
     Type.Union([Type.Integer({ minimum: 1, maximum: 1000 }), Type.Null()]),
   ),

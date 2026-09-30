@@ -38,6 +38,7 @@ export interface Alarm {
   timezone: string;
   startDate: string;
   endDate: string | null;
+  endTime: string | null;
   endAfterOccurrences: number | null;
   endTimeOfDay: string | null;
   repeatEvery: number | null;
@@ -100,6 +101,7 @@ export interface PreviewRequest {
   timezone?: string;
   startDate: string;
   endDate?: string | null;
+  endTime?: string | null;
   endAfterOccurrences?: number | null;
   endTimeOfDay?: string | null;
   repeatEvery?: number | null;

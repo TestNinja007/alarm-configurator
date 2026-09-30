@@ -25,6 +25,7 @@ export interface ScheduleInput {
   timezone?: string | null;
   startDate: string;
   endDate?: string | null;
+  endTime?: string | null;
   endAfterOccurrences?: number | null;
   endTimeOfDay?: string | null;
   repeatEvery?: number | null;
@@ -74,6 +75,15 @@ export function validateSchedule(input: ScheduleInput): { timezone: string } {
       field: 'endDate',
       code: 'before_start',
       message: 'endDate must not be earlier than startDate.',
+    });
+  }
+
+  // A time with no date has nothing to attach to.
+  if (input.endTime != null && input.endDate == null) {
+    fields.push({
+      field: 'endTime',
+      code: 'needs_date',
+      message: 'Choose an end date as well as an end time.',
     });
   }
 

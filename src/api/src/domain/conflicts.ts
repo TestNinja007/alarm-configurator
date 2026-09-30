@@ -31,6 +31,7 @@ export function specFromRow(row: AlarmRow): ScheduleSpec {
     timezone: row.timezone,
     startDate: row.start_date,
     endDate: row.end_date,
+    endTime: row.end_time,
     endAfterOccurrences: row.end_after_occurrences,
     endTimeOfDay: row.end_time_of_day,
     repeatEvery: row.repeat_every,
@@ -43,7 +44,7 @@ export function specFromRow(row: AlarmRow): ScheduleSpec {
 async function enabledSiblings(folderId: string, excludeAlarmId?: string): Promise<AlarmRow[]> {
   const params: (string | null)[] = [folderId];
   let sql = `SELECT id, folder_id, name, note, enabled, time_of_day, timezone, start_date,
-                    end_date, end_after_occurrences, end_time_of_day, repeat_every,
+                    end_date, end_time, end_after_occurrences, end_time_of_day, repeat_every,
                     repeat_unit, rule, created_at, updated_at
                FROM alarms
               WHERE folder_id = $1 AND enabled = true`;

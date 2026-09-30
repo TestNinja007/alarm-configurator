@@ -29,6 +29,12 @@ export interface ScheduleSpec {
   timezone: string;
   startDate: string;
   endDate?: string | null;
+  /**
+   * An optional time of day on `endDate`, so the series can stop at a precise
+   * instant rather than running to the end of that day. Not the same as
+   * `endTimeOfDay`, which closes the repeat window on every day.
+   */
+  endTime?: string | null;
   endAfterOccurrences?: number | null;
   rule: Rule;
   /**
@@ -262,6 +268,15 @@ export function occurrencesFor(spec: ScheduleSpec, window: OccurrenceWindow): Oc
   }
 
   const endDate = spec.endDate ? parseLocalDate(spec.endDate, zone).endOf('day') : undefined;
+
+  // With a time, the series stops at that instant on that day; without one it
+  // runs to the end of the day, which is what endOf('day') already gives.
+  const endInstantMillis = spec.endDate
+    ? (spec.endTime
+        ? resolveInstant(parseLocalDate(spec.endDate, zone), secondsOfDay(spec.endTime), zone)
+        : parseLocalDate(spec.endDate, zone).endOf('day')
+      ).toMillis()
+    : Number.POSITIVE_INFINITY;
   const maxCount = spec.endAfterOccurrences ?? undefined;
 
   const fromMillis = window.from?.getTime() ?? Number.NEGATIVE_INFINITY;
@@ -308,9 +323,17 @@ export function occurrencesFor(spec: ScheduleSpec, window: OccurrenceWindow): Oc
     for (const instant of dayInstants) {
       if (maxCount !== undefined && produced >= maxCount) break;
 
+      const millis = instant.toMillis();
+
+      // The series end is an instant, so an occurrence later on the final day
+      // is excluded rather than the whole day being kept or dropped.
+      if (millis > endInstantMillis) {
+        pastWindow = true;
+        break;
+      }
+
       produced += 1;
 
-      const millis = instant.toMillis();
       if (millis > toMillis) {
         pastWindow = true;
         break;

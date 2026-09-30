@@ -98,6 +98,26 @@ returns 404, never 403.
 | R-11 | `timeOfDay` must be `HH:mm`, 00:00 to 23:59. `24:00` is rejected. | done |
 | R-12 | `timezone` must be a valid IANA name; anything else is 422. | done |
 
+### Ending a series
+
+`endDate` alone runs the alarm through the end of that day. Adding the optional
+`endTime` stops it at a precise instant instead, so an alarm at 22:00 with
+`endDate` 3 June and `endTime` 12:00 last fires on the 2nd.
+
+`endTime` without `endDate` is 422 with code `needs_date` — a time on its own
+has nothing to attach to.
+
+This is a different thing from `endTimeOfDay` below, which closes the repeat
+window on *every* day. The wizard labels them accordingly: "End time" under
+Ends, and "Until" under Repeat during the day.
+
+### Required fields in the wizard
+
+Each step checks what it needs before it will advance, so a missing name is
+caught on step one rather than three screens later at submit. Going **back** is
+never blocked. The server validates everything again regardless — the step
+check is a convenience, not the enforcement.
+
 ### Repeating within a day
 
 The `rule` decides which **days** an alarm falls on. Three optional fields decide
