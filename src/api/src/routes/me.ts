@@ -1,9 +1,14 @@
 import type { FastifyInstance } from 'fastify';
 import { Type } from '@sinclair/typebox';
 import { requireUser } from '../auth/guard.js';
+import { verifyPassword } from '../auth/password.js';
+import {
+  CSRF_COOKIE,
+  SESSION_COOKIE,
+} from '../auth/sessions.js';
 import { clock } from '../clock.js';
 import { query, queryOne } from '../db/pool.js';
-import { notFound } from '../errors.js';
+import { conflict, notFound, unauthenticated } from '../errors.js';
 import { UiStateSchema } from '../schemas/auth.js';
 import { UuidSchema, errorResponses } from '../schemas/common.js';
 
@@ -61,8 +66,97 @@ interface UiStateRow {
   updated_at: Date;
 }
 
+const DeleteAccountBodySchema = Type.Object(
+  { password: Type.String({ minLength: 1, maxLength: 200 }) },
+  { additionalProperties: false },
+);
+
+const DeleteAccountQuerySchema = Type.Object({
+  confirm: Type.Optional(Type.Union([Type.Literal('true'), Type.Literal('false')])),
+});
+
 export async function meRoutes(app: FastifyInstance): Promise<void> {
   app.addHook('preHandler', requireUser);
+
+  app.delete<{ Body: { password: string }; Querystring: { confirm?: 'true' | 'false' } }>(
+    '/me',
+    {
+      schema: {
+        summary: 'Delete the signed-in account and everything in it',
+        description:
+          'Requires ?confirm=true and the account password. Without the flag it ' +
+          'returns 409 describing what would be removed.',
+        tags: ['auth'],
+        body: DeleteAccountBodySchema,
+        querystring: DeleteAccountQuerySchema,
+        response: { 204: Type.Null(), ...errorResponses },
+      },
+    },
+    async (request, reply) => {
+      const userId = request.user!.id;
+
+      const account = await queryOne<{
+        password_hash: string;
+        external_key: string | null;
+        folder_count: number;
+        alarm_count: number;
+      }>(
+        `SELECT u.password_hash,
+                u.external_key,
+                count(DISTINCT f.id) AS folder_count,
+                count(a.id)          AS alarm_count
+           FROM users u
+           LEFT JOIN folders f ON f.user_id = u.id
+           LEFT JOIN alarms  a ON a.folder_id = f.id
+          WHERE u.id = $1
+          GROUP BY u.id`,
+        [userId],
+      );
+      if (!account) throw notFound('Account');
+
+      // The seeded accounts are shared: their credentials are published, so
+      // anyone could otherwise delete the demo out from under everyone else.
+      if (account.external_key) {
+        throw conflict('Seeded demonstration accounts cannot be deleted.', {
+          fields: [
+            {
+              field: 'account',
+              code: 'seeded_account',
+              message: 'This account is part of the demonstration data.',
+            },
+          ],
+        });
+      }
+
+      // Checked before the confirmation flag, so a wrong password never
+      // reveals how much the account holds.
+      if (!(await verifyPassword(request.body.password, account.password_hash))) {
+        throw unauthenticated('That password is not correct.');
+      }
+
+      if (request.query.confirm !== 'true') {
+        throw conflict(
+          'Deleting your account also deletes every folder and alarm in it. Repeat the request with ?confirm=true.',
+          {
+            details: {
+              folderCount: account.folder_count,
+              alarmCount: account.alarm_count,
+            },
+          },
+        );
+      }
+
+      // Sessions, folders, alarms, drafts, UI state and any outstanding
+      // verification code all cascade from the user row.
+      await query('DELETE FROM users WHERE id = $1', [userId]);
+
+      reply
+        .clearCookie(SESSION_COOKIE, { path: '/' })
+        .clearCookie(CSRF_COOKIE, { path: '/' })
+        .status(204);
+      return null;
+    },
+  );
 
   app.get(
     '/me/alarm-draft',

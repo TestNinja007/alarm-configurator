@@ -134,6 +134,23 @@ you in for the first time.
 Email comparison is case-insensitive and the name is trimmed, matching the rest
 of the application. There is still **no password reset**, and the form says so.
 
+### Deleting an account
+
+`DELETE /api/v1/me` removes the account and cascades to its sessions, folders,
+alarms, wizard draft, UI state and any outstanding verification code.
+
+| Case | Response |
+| --- | --- |
+| Wrong password | 401 — checked before anything else, so a wrong password never reveals how much the account holds |
+| Without `?confirm=true` | 409 carrying `folderCount` and `alarmCount` |
+| A seeded account | 409, code `seeded_account` |
+| Success | 204, cookies cleared, the address becomes available again |
+
+Seeded accounts are protected because their credentials are published in this
+file: without the guard, the first visitor to the public instance could delete
+the demonstration data out from under everybody else, and `POST /test/reset` is
+not available there to put it back.
+
 ## Email
 
 `MAIL_TRANSPORT` picks how messages leave:
@@ -252,6 +269,7 @@ Every non-2xx response uses one envelope:
 | GET | `/alarms/{id}/occurrences` | `from`, `to`, `limit`. `to - from` may not exceed 366 days. |
 | GET/PUT/DELETE | `/me/alarm-draft` | The wizard draft (A-03). |
 | GET/PUT | `/me/ui-state` | Folder filter and sort order (A-04). |
+| DELETE | `/me` | Deletes the account and everything in it. Needs `?confirm=true` and the password. |
 | GET | `/me/upcoming` | Occurrences due soon across every enabled alarm, for the notification scheduler. |
 | GET | `/health` | Always mounted, whatever `TEST_SUPPORT` is set to (T-04). |
 | GET | `/openapi.json` | OpenAPI 3.1, generated from the schemas the server validates with. |
