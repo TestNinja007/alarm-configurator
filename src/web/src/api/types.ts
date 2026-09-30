@@ -41,6 +41,7 @@ export interface Alarm {
   endTime: string | null;
   endAfterOccurrences: number | null;
   speechText: string | null;
+  speechFinalText: string | null;
   speechVoice: 'male' | 'female' | null;
   endTimeOfDay: string | null;
   repeatEvery: number | null;
@@ -64,6 +65,7 @@ export type AlarmSort = 'name' | 'created' | 'next';
 export function describeWindow(alarm: {
   timeOfDay: string;
   speechText?: string | null;
+  speechFinalText?: string | null;
   speechVoice?: 'male' | 'female' | null;
   endTimeOfDay?: string | null;
   repeatEvery?: number | null;
@@ -108,6 +110,7 @@ export interface PreviewRequest {
   endTime?: string | null;
   endAfterOccurrences?: number | null;
   speechText?: string | null;
+  speechFinalText?: string | null;
   speechVoice?: 'male' | 'female' | null;
   endTimeOfDay?: string | null;
   repeatEvery?: number | null;
@@ -164,7 +167,10 @@ export interface UpcomingOccurrence {
   timezone: string;
   note: string | null;
   speechText: string | null;
+  speechFinalText: string | null;
   speechVoice: 'male' | 'female' | null;
+  indexInDay: number;
+  countInDay: number;
   utc: string;
   local: string;
 }

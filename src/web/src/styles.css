@@ -173,6 +173,21 @@ a:focus-visible {
   border-color: var(--danger);
 }
 
+.speech-sequence {
+  margin: 6px 0 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.speech-sequence li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
 .rule-window {
   display: block;
   color: var(--muted);

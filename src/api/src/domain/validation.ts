@@ -28,6 +28,7 @@ export interface ScheduleInput {
   endTime?: string | null;
   endAfterOccurrences?: number | null;
   speechText?: string | null;
+  speechFinalText?: string | null;
   speechVoice?: 'male' | 'female' | null;
   endTimeOfDay?: string | null;
   repeatEvery?: number | null;
@@ -112,6 +113,15 @@ export function validateSchedule(input: ScheduleInput): { timezone: string } {
       field: 'speechText',
       code: 'blank',
       message: 'Write something to say, or leave it empty entirely.',
+    });
+  }
+
+  // A closing line with nothing before it has nothing to close.
+  if (input.speechFinalText != null && !input.speechText?.trim()) {
+    fields.push({
+      field: 'speechFinalText',
+      code: 'needs_text',
+      message: 'Write the ordinary message before the closing one.',
     });
   }
 

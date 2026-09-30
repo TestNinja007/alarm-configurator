@@ -18,6 +18,7 @@ import {
   subscribeToVoices,
   voicesSnapshot,
 } from '../lib/speech';
+import { speechFor } from '../lib/speechTemplate';
 import { OccurrencePreview } from '../components/OccurrencePreview';
 import { useToast } from '../components/Toaster';
 
@@ -38,6 +39,7 @@ interface WizardForm {
   name: string;
   note: string;
   speechText: string;
+  speechFinalText: string;
   speechVoice: 'male' | 'female';
   timeOfDay: string;
   timezone: string;
@@ -53,12 +55,19 @@ interface WizardForm {
   rule: Rule;
 }
 
+/** Minutes since midnight, for the spoken-sequence preview. */
+function toMinutesOfDay(timeOfDay: string): number {
+  const [hour, minute] = timeOfDay.split(':');
+  return Number.parseInt(hour ?? '', 10) * 60 + Number.parseInt(minute ?? '', 10);
+}
+
 function emptyForm(folderId: string): WizardForm {
   return {
     folderId,
     name: '',
     note: '',
     speechText: '',
+    speechFinalText: '',
     speechVoice: 'female',
     timeOfDay: '07:00',
     timezone: 'America/Toronto',
@@ -81,6 +90,7 @@ function formFromAlarm(alarm: Alarm): WizardForm {
     name: alarm.name,
     note: alarm.note ?? '',
     speechText: alarm.speechText ?? '',
+    speechFinalText: alarm.speechFinalText ?? '',
     speechVoice: alarm.speechVoice ?? 'female',
     timeOfDay: alarm.timeOfDay,
     timezone: alarm.timezone,
@@ -104,6 +114,8 @@ function toPayload(form: WizardForm) {
     name: form.name.trim(),
     note: form.note.trim() ? form.note.trim() : null,
     speechText: form.speechText.trim() ? form.speechText.trim() : null,
+    speechFinalText:
+      form.speechText.trim() && form.speechFinalText.trim() ? form.speechFinalText.trim() : null,
     speechVoice: form.speechText.trim() ? form.speechVoice : null,
     timeOfDay: form.timeOfDay,
     timezone: form.timezone,
@@ -373,6 +385,39 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
               {form.speechText.trim() ? (
                 <>
                   <div className="field">
+                    <label htmlFor="alarm-speech-final-text">
+                      Last one of the day says (optional)
+                    </label>
+                    <input
+                      id="alarm-speech-final-text"
+                      value={form.speechFinalText}
+                      maxLength={SPEECH_MAX_LENGTH}
+                      onChange={(event) => update({ speechFinalText: event.target.value })}
+                      aria-describedby="alarm-speech-final-hint"
+                      data-testid="alarm-speech-final-text-input"
+                    />
+                    <p
+                      id="alarm-speech-final-hint"
+                      className="field-hint"
+                      data-testid="alarm-speech-final-hint"
+                    >
+                      Leave blank to say the same thing every time.
+                    </p>
+                  </div>
+
+                  {/*
+                    Tokens rather than one message per repetition: the numbers
+                    come from where the occurrence falls in its day, so changing
+                    the repeat interval cannot leave the wording stale.
+                  */}
+                  <p className="field-hint" data-testid="alarm-speech-tokens-hint">
+                    Use <code>{'{ordinal}'}</code> for first, second, third;{' '}
+                    <code>{'{n}'}</code> for the number; <code>{'{total}'}</code> for how many
+                    times it fires that day; <code>{'{remaining}'}</code> for how many are
+                    left.
+                  </p>
+
+                  <div className="field">
                     <label htmlFor="alarm-speech-voice">Voice</label>
                     <select
                       id="alarm-speech-voice"
@@ -387,17 +432,65 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
                     </select>
                   </div>
 
-                  <div className="notification-actions">
-                    <button
-                      type="button"
-                      className="button"
-                      onClick={() => speak(form.speechText, form.speechVoice)}
-                      disabled={!speechSupported()}
-                      data-testid="alarm-speech-preview-button"
-                    >
-                      Hear it
-                    </button>
-                  </div>
+                  {(() => {
+                    // What it says on each repetition, worked out here rather
+                    // than described, because the tokens are the whole point.
+                    const perDay = form.repeatWithinDay
+                      ? Math.max(
+                          1,
+                          Math.min(
+                            8,
+                            Math.floor(
+                              (toMinutesOfDay(form.endTimeOfDay) -
+                                toMinutesOfDay(form.timeOfDay)) /
+                                Math.max(
+                                  1,
+                                  (Number.parseInt(form.repeatEvery, 10) || 1) *
+                                    (form.repeatUnit === 'hours'
+                                      ? 60
+                                      : form.repeatUnit === 'seconds'
+                                        ? 1 / 60
+                                        : 1),
+                                ),
+                            ) + 1,
+                          ),
+                        )
+                      : 1;
+
+                    const lines = Array.from({ length: perDay }, (_, index) =>
+                      speechFor(
+                        { speechText: form.speechText, speechFinalText: form.speechFinalText },
+                        { indexInDay: index + 1, countInDay: perDay },
+                      ),
+                    );
+
+                    return (
+                      <div className="field" data-testid="alarm-speech-sequence">
+                        <span className="field-hint">
+                          {perDay === 1
+                            ? 'It will say:'
+                            : `Firing ${perDay} times a day, it will say:`}
+                        </span>
+                        <ol className="speech-sequence">
+                          {lines.map((line, index) => (
+                            <li key={index} data-testid="alarm-speech-sequence-line">
+                              <span>{line}</span>
+                              <button
+                                type="button"
+                                className="button"
+                                onClick={() => line && speak(line, form.speechVoice)}
+                                disabled={!speechSupported()}
+                                aria-label={`Hear message ${index + 1}`}
+                                data-testid="alarm-speech-preview-button"
+                              >
+                                Hear it
+                              </button>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    );
+                  })()}
 
                   {/*
                     Voices belong to the operating system and differ between
