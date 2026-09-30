@@ -29,7 +29,7 @@ import { IdParamsSchema, errorResponses, type IdParams } from '../schemas/common
 const ALARM_COLUMNS = `
   a.id, a.folder_id, a.name, a.note, a.enabled, a.time_of_day, a.timezone,
   a.start_date, a.end_date, a.end_time, a.end_after_occurrences,
-  a.speech_text, a.speech_voice,
+  a.speech_text, a.speech_final_text, a.speech_voice,
   a.end_time_of_day, a.repeat_every, a.repeat_unit,
   a.rule, a.created_at, a.updated_at
 `;
@@ -231,10 +231,10 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
         await query(
           `INSERT INTO alarms (id, folder_id, name, note, enabled, time_of_day, timezone,
                                start_date, end_date, end_time, end_after_occurrences,
-                               speech_text, speech_voice,
+                               speech_text, speech_final_text, speech_voice,
                                end_time_of_day, repeat_every, repeat_unit, rule,
                                created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $18)`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $19)`,
           [
             id,
             request.body.folderId,
@@ -248,6 +248,7 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
             request.body.endTime ?? null,
             request.body.endAfterOccurrences ?? null,
             request.body.speechText?.trim() || null,
+            request.body.speechFinalText?.trim() || null,
             request.body.speechVoice ?? null,
             request.body.endTimeOfDay ?? null,
             request.body.repeatEvery ?? null,
@@ -327,10 +328,11 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
           `UPDATE alarms
               SET folder_id = $1, name = $2, note = $3, time_of_day = $4, timezone = $5,
                   start_date = $6, end_date = $7, end_time = $8,
-                  end_after_occurrences = $9, speech_text = $10, speech_voice = $11,
-                  end_time_of_day = $12, repeat_every = $13, repeat_unit = $14,
-                  rule = $15, updated_at = $16
-            WHERE id = $17`,
+                  end_after_occurrences = $9, speech_text = $10,
+                  speech_final_text = $11, speech_voice = $12,
+                  end_time_of_day = $13, repeat_every = $14, repeat_unit = $15,
+                  rule = $16, updated_at = $17
+            WHERE id = $18`,
           [
             request.body.folderId,
             request.body.name.trim(),
@@ -342,6 +344,7 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
             request.body.endTime ?? null,
             request.body.endAfterOccurrences ?? null,
             request.body.speechText?.trim() || null,
+            request.body.speechFinalText?.trim() || null,
             request.body.speechVoice ?? null,
             request.body.endTimeOfDay ?? null,
             request.body.repeatEvery ?? null,

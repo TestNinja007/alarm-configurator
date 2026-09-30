@@ -24,6 +24,20 @@ export interface Occurrence {
   local: string;
 }
 
+/**
+ * An occurrence together with where it sits in its own day.
+ *
+ * Both are needed to say "this is your second of three warnings" without the
+ * caller having to fetch the whole day and count. `countInDay` is the total for
+ * that day even when the requested window clips it, since a message about
+ * being third of five should not change because someone asked a narrow
+ * question.
+ */
+export interface PlacedOccurrence extends Occurrence {
+  indexInDay: number;
+  countInDay: number;
+}
+
 export interface ScheduleSpec {
   timeOfDay: string;
   timezone: string;
@@ -262,6 +276,14 @@ function formatOccurrence(instant: DateTime): Occurrence {
  * begins at startDate when a count limit is set.
  */
 export function occurrencesFor(spec: ScheduleSpec, window: OccurrenceWindow): Occurrence[] {
+  return placedOccurrencesFor(spec, window).map(({ utc, local }) => ({ utc, local }));
+}
+
+/** As `occurrencesFor`, but each occurrence knows its place in its own day. */
+export function placedOccurrencesFor(
+  spec: ScheduleSpec,
+  window: OccurrenceWindow,
+): PlacedOccurrence[] {
   const zone = spec.timezone;
   if (!DateTime.local().setZone(zone).isValid) {
     throw new RecurrenceError(`Invalid time zone: ${zone}`);
@@ -282,7 +304,7 @@ export function occurrencesFor(spec: ScheduleSpec, window: OccurrenceWindow): Oc
   const fromMillis = window.from?.getTime() ?? Number.NEGATIVE_INFINITY;
   const toMillis = window.to?.getTime() ?? Number.POSITIVE_INFINITY;
 
-  const results: Occurrence[] = [];
+  const results: PlacedOccurrence[] = [];
   let produced = 0;
 
   const secondsOfDayList = secondsWithinDay(spec);
@@ -320,7 +342,7 @@ export function occurrencesFor(spec: ScheduleSpec, window: OccurrenceWindow): Oc
 
     let pastWindow = false;
 
-    for (const instant of dayInstants) {
+    for (const [indexInDay, instant] of dayInstants.entries()) {
       if (maxCount !== undefined && produced >= maxCount) break;
 
       const millis = instant.toMillis();
@@ -340,7 +362,11 @@ export function occurrencesFor(spec: ScheduleSpec, window: OccurrenceWindow): Oc
       }
       if (millis < fromMillis) continue;
 
-      results.push(formatOccurrence(instant));
+      results.push({
+        ...formatOccurrence(instant),
+        indexInDay: indexInDay + 1,
+        countInDay: dayInstants.length,
+      });
       if (results.length >= window.limit) break;
     }
 

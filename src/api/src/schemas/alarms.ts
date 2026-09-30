@@ -29,6 +29,7 @@ export const AlarmSchema = Type.Object(
     endTime: Type.Union([TimeOfDaySchema, Type.Null()]),
     endAfterOccurrences: Type.Union([Type.Integer(), Type.Null()]),
     speechText: Type.Union([Type.String(), Type.Null()]),
+    speechFinalText: Type.Union([Type.String(), Type.Null()]),
     speechVoice: Type.Union([Type.Literal('male'), Type.Literal('female'), Type.Null()]),
     endTimeOfDay: Type.Union([TimeOfDaySchema, Type.Null()]),
     repeatEvery: Type.Union([Type.Integer(), Type.Null()]),
@@ -62,6 +63,8 @@ const scheduleProperties = {
    * the voices installed differ from one machine to the next.
    */
   speechText: Type.Optional(Type.Union([Type.String({ maxLength: 200 }), Type.Null()])),
+  /** Replaces speechText on the last occurrence of each day, when set. */
+  speechFinalText: Type.Optional(Type.Union([Type.String({ maxLength: 200 }), Type.Null()])),
   speechVoice: Type.Optional(
     Type.Union([Type.Literal('male'), Type.Literal('female'), Type.Null()]),
   ),
@@ -201,7 +204,10 @@ export const UpcomingOccurrenceSchema = Type.Object({
   timezone: Type.String(),
   note: Type.Union([Type.String(), Type.Null()]),
   speechText: Type.Union([Type.String(), Type.Null()]),
+  speechFinalText: Type.Union([Type.String(), Type.Null()]),
   speechVoice: Type.Union([Type.Literal('male'), Type.Literal('female'), Type.Null()]),
+  indexInDay: Type.Integer(),
+  countInDay: Type.Integer(),
   utc: Type.String(),
   local: Type.String(),
 });

@@ -7,7 +7,7 @@ import { notFound, validationError } from '../errors.js';
 import type { AlarmRow } from '../domain/mappers.js';
 import { conflictsInFolder, specFromRow, CONFLICT_WINDOW_DAYS } from '../domain/conflicts.js';
 import { validateSchedule } from '../domain/validation.js';
-import { nextOccurrence, occurrencesFor } from '../recurrence/engine.js';
+import { nextOccurrence, occurrencesFor, placedOccurrencesFor } from '../recurrence/engine.js';
 import { normaliseRule } from '../schemas/rule.js';
 import {
   ConflictListSchema,
@@ -29,7 +29,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const ALARM_COLUMNS = `
   a.id, a.folder_id, a.name, a.note, a.enabled, a.time_of_day, a.timezone,
   a.start_date, a.end_date, a.end_time, a.end_after_occurrences,
-  a.speech_text, a.speech_voice,
+  a.speech_text, a.speech_final_text, a.speech_voice,
   a.end_time_of_day, a.repeat_every, a.repeat_unit,
   a.rule, a.created_at, a.updated_at
 `;
@@ -134,7 +134,7 @@ export async function occurrenceRoutes(app: FastifyInstance): Promise<void> {
 
       const items = rows
         .flatMap((row) =>
-          occurrencesFor(specFromRow(row), { from: now, to: until, limit: 50 }).map(
+          placedOccurrencesFor(specFromRow(row), { from: now, to: until, limit: 50 }).map(
             (occurrence) => ({
               alarmId: row.id,
               alarmName: row.name,
@@ -143,7 +143,10 @@ export async function occurrenceRoutes(app: FastifyInstance): Promise<void> {
               timezone: row.timezone,
               note: row.note,
               speechText: row.speech_text,
+              speechFinalText: row.speech_final_text,
               speechVoice: row.speech_voice,
+              indexInDay: occurrence.indexInDay,
+              countInDay: occurrence.countInDay,
               utc: occurrence.utc,
               local: occurrence.local,
             }),

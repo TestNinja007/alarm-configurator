@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { speak } from '../lib/speech';
+import { speechFor } from '../lib/speechTemplate';
 import type { UpcomingList, UpcomingOccurrence } from '../api/types';
 
 /**
@@ -100,11 +101,11 @@ export function useAlarmNotifications() {
     saveFired(fired.current);
     setLastFired(key);
 
-    // Spoken as well as shown, when the alarm carries a message. The
-    // notification goes first: it is the thing that must not be missed.
-    if (occurrence.speechText) {
-      speak(occurrence.speechText, occurrence.speechVoice ?? 'female');
-    }
+    // Spoken as well as shown, when the alarm carries a message. The words
+    // depend on where this occurrence sits in its day, so the second of three
+    // warnings can say so without anyone writing three messages.
+    const words = speechFor(occurrence, occurrence);
+    if (words) speak(words, occurrence.speechVoice ?? 'female');
 
     try {
       const notification = new Notification(occurrence.alarmName, {

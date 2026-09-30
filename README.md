@@ -345,6 +345,40 @@ the operating system, so this costs nothing and works offline.
 
 A voice without text is 422 with code `needs_text`.
 
+### Messages that change with each repetition
+
+An alarm firing several times a day should not need a message written per
+repetition — and if it did, changing the repeat interval would leave those
+messages quietly wrong. So `speechText` is a template, filled from where the
+occurrence sits in its own day:
+
+| Token | Becomes |
+| --- | --- |
+| `{ordinal}` | first, second, third… |
+| `{n}` | 1, 2, 3… |
+| `{total}` | how many times it fires that day |
+| `{remaining}` | how many are left after this one |
+
+`speechFinalText` replaces it on the last occurrence of the day, which is what
+makes "last warning" read naturally rather than "third warning".
+
+So one alarm firing three times, written once:
+
+```
+speechText      "Hey, this is your {ordinal} warning of {total}. Get it done."
+speechFinalText "Hey, this is your last warning. Get it done now."
+```
+
+says *first warning of 3*, *second warning of 3*, then *last warning* — and
+still says the right thing if it later fires five times.
+
+Unknown tokens are left as written rather than blanked, so a typo is audible
+instead of silently eating part of the sentence.
+
+`GET /me/upcoming` carries `indexInDay` and `countInDay` for this. `countInDay`
+is the total for that day even when the requested window clips it: being third
+of five should not become third of two because someone asked a narrow question.
+
 **Gender is a preference, not a guarantee.** `SpeechSynthesisVoice` exposes only
 `voiceURI`, `name`, `lang`, `localService` and `default` — there is no gender
 field in the standard and none in practice. The preference is matched against
