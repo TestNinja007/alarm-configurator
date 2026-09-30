@@ -40,7 +40,7 @@ export interface ScheduleSpec {
    */
   endTimeOfDay?: string | null;
   repeatEvery?: number | null;
-  repeatUnit?: 'minutes' | 'hours' | null;
+  repeatUnit?: 'seconds' | 'minutes' | 'hours' | null;
 }
 
 export interface OccurrenceWindow {
@@ -74,24 +74,32 @@ function parseLocalDate(date: string, zone: string): DateTime {
   return DateTime.fromISO(date, { zone });
 }
 
-/** Minutes since midnight, from an HH:mm string. */
-function minutesOfDay(timeOfDay: string): number {
+/** Seconds since midnight, from an HH:mm string. */
+function secondsOfDay(timeOfDay: string): number {
   const [rawHour, rawMinute] = timeOfDay.split(':');
-  return Number.parseInt(rawHour ?? '', 10) * 60 + Number.parseInt(rawMinute ?? '', 10);
+  return (Number.parseInt(rawHour ?? '', 10) * 60 + Number.parseInt(rawMinute ?? '', 10)) * 60;
+}
+
+/** How many seconds one step of a repeat unit covers. */
+export function stepSeconds(every: number, unit: 'seconds' | 'minutes' | 'hours'): number {
+  if (unit === 'hours') return every * 3600;
+  if (unit === 'minutes') return every * 60;
+  return every;
 }
 
 /**
- * Turns a local calendar date plus a wall-clock minute-of-day into an instant.
+ * Turns a local calendar date plus a wall-clock second-of-day into an instant.
  * This is the single place where R-06 and R-07 take effect.
  */
-function resolveInstant(date: DateTime, minuteOfDay: number, zone: string): DateTime {
+function resolveInstant(date: DateTime, secondOfDay: number, zone: string): DateTime {
   return DateTime.fromObject(
     {
       year: date.year,
       month: date.month,
       day: date.day,
-      hour: Math.floor(minuteOfDay / 60),
-      minute: minuteOfDay % 60,
+      hour: Math.floor(secondOfDay / 3600),
+      minute: Math.floor((secondOfDay % 3600) / 60),
+      second: secondOfDay % 60,
     },
     { zone },
   );
@@ -109,24 +117,34 @@ function resolveInstant(date: DateTime, minuteOfDay: number, zone: string): Date
  * window. A window that spans the gap simply has fewer distinct instants that
  * day, which is what "between 09:00 and 17:00 local" ought to mean.
  */
-function minutesWithinDay(spec: ScheduleSpec): number[] {
-  const start = minutesOfDay(spec.timeOfDay);
+function secondsWithinDay(spec: ScheduleSpec): number[] {
+  const start = secondsOfDay(spec.timeOfDay);
 
   if (!spec.endTimeOfDay || !spec.repeatEvery || !spec.repeatUnit) return [start];
 
-  const end = minutesOfDay(spec.endTimeOfDay);
-  const step = spec.repeatUnit === 'hours' ? spec.repeatEvery * 60 : spec.repeatEvery;
+  const end = secondsOfDay(spec.endTimeOfDay);
+  const step = stepSeconds(spec.repeatEvery, spec.repeatUnit);
   if (step <= 0 || end < start) return [start];
 
-  const minutes: number[] = [];
-  for (let at = start; at <= end && minutes.length <= MAX_PER_DAY; at += step) {
-    minutes.push(at);
+  const seconds: number[] = [];
+  for (let at = start; at <= end && seconds.length < MAX_PER_DAY; at += step) {
+    seconds.push(at);
   }
-  return minutes;
+  return seconds;
 }
 
-/** One a minute for a full day, which the database constraint also enforces. */
-const MAX_PER_DAY = 1440;
+/**
+ * The density ceiling, also enforced when a schedule is saved.
+ *
+ * Both ends of a window are included, so every ten seconds across ten hours is
+ * 3,601 occurrences rather than 3,600 — the round-looking number is one short
+ * of the case people actually ask for. 4,000 clears it, and covers every second
+ * for an hour or every minute for a full day.
+ *
+ * The ceiling exists because of R-08: conflict detection compares two alarms'
+ * whole occurrence sets across ninety days, which this bounds at 360,000 each.
+ */
+export const MAX_PER_DAY = 4000;
 
 /** Candidate local dates for the rule, ascending, starting at startDate. */
 function* candidateDates(spec: ScheduleSpec): Generator<DateTime> {
@@ -252,7 +270,7 @@ export function occurrencesFor(spec: ScheduleSpec, window: OccurrenceWindow): Oc
   const results: Occurrence[] = [];
   let produced = 0;
 
-  const minutes = minutesWithinDay(spec);
+  const secondsOfDayList = secondsWithinDay(spec);
 
   for (const date of candidateDates(spec)) {
     // R-04's end condition: an endDate stops the rule, inclusive of that day.
@@ -273,8 +291,8 @@ export function occurrencesFor(spec: ScheduleSpec, window: OccurrenceWindow): Oc
     const seen = new Set<number>();
     const dayInstants: DateTime[] = [];
 
-    for (const minuteOfDay of minutes) {
-      const instant = resolveInstant(date, minuteOfDay, zone);
+    for (const secondOfDay of secondsOfDayList) {
+      const instant = resolveInstant(date, secondOfDay, zone);
       if (!instant.isValid) continue;
 
       const millis = instant.toMillis();
@@ -334,11 +352,11 @@ export function collidingInstants(
 
 /**
  * High enough to cover the densest schedule across the whole conflict window:
- * one a minute for ninety days is 129,600 occurrences.
+ * MAX_PER_DAY for ninety days is 324,000 occurrences.
  *
  * It used to be 1,000, which was ample when an alarm fired once a day but
  * silently truncated a minute-by-minute one after seventeen hours — so R-08
  * would have declared two colliding alarms compatible simply because it never
  * looked far enough ahead.
  */
-const MAX_OCCURRENCES_PER_COMPARISON = 150_000;
+const MAX_OCCURRENCES_PER_COMPARISON = 400_000;

@@ -38,7 +38,7 @@ interface WizardForm {
   repeatWithinDay: boolean;
   endTimeOfDay: string;
   repeatEvery: string;
-  repeatUnit: 'minutes' | 'hours';
+  repeatUnit: 'seconds' | 'minutes' | 'hours';
   rule: Rule;
 }
 
@@ -366,10 +366,13 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
                       id="alarm-repeat-unit"
                       value={form.repeatUnit}
                       onChange={(event) =>
-                        update({ repeatUnit: event.target.value as 'minutes' | 'hours' })
+                        update({
+                          repeatUnit: event.target.value as 'seconds' | 'minutes' | 'hours',
+                        })
                       }
                       data-testid="alarm-repeat-unit-select"
                     >
+                      <option value="seconds">Seconds</option>
                       <option value="minutes">Minutes</option>
                       <option value="hours">Hours</option>
                     </select>

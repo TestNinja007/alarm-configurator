@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { collidingInstants, occurrencesFor, type ScheduleSpec } from './engine.js';
+import { collidingInstants, occurrencesFor, MAX_PER_DAY, type ScheduleSpec } from './engine.js';
 
 /**
  * Unit tests for the recurrence engine, focused on R-04 through R-07. These are
@@ -437,6 +437,65 @@ describe('repeating within a day', () => {
       '2026-03-08T07:00:00Z',
       '2026-03-08T07:30:00Z',
     ]);
+  });
+
+  it('repeats every few seconds, with seconds in the output', () => {
+    const result = occurrencesFor(
+      spec({
+        timeOfDay: '09:00',
+        endTimeOfDay: '09:01',
+        repeatEvery: 15,
+        repeatUnit: 'seconds',
+        startDate: '2026-06-01',
+        rule: { type: 'once' },
+      }),
+      { limit: 10 },
+    );
+
+    expect(local(result)).toEqual([
+      '2026-06-01T09:00:00-04:00',
+      '2026-06-01T09:00:15-04:00',
+      '2026-06-01T09:00:30-04:00',
+      '2026-06-01T09:00:45-04:00',
+      '2026-06-01T09:01:00-04:00',
+    ]);
+  });
+
+  it('carries seconds through to the UTC instant', () => {
+    const result = occurrencesFor(
+      spec({
+        timeOfDay: '09:00',
+        endTimeOfDay: '09:01',
+        repeatEvery: 30,
+        repeatUnit: 'seconds',
+        startDate: '2026-06-01',
+        rule: { type: 'once' },
+      }),
+      { limit: 5 },
+    );
+
+    expect(utc(result)).toEqual([
+      '2026-06-01T13:00:00Z',
+      '2026-06-01T13:00:30Z',
+      '2026-06-01T13:01:00Z',
+    ]);
+  });
+
+  it('never exceeds the per-day ceiling', () => {
+    // Every second across a full day would be 86,400; the engine stops at the cap.
+    const result = occurrencesFor(
+      spec({
+        timeOfDay: '00:00',
+        endTimeOfDay: '23:59',
+        repeatEvery: 1,
+        repeatUnit: 'seconds',
+        startDate: '2026-06-01',
+        rule: { type: 'once' },
+      }),
+      { limit: Number.MAX_SAFE_INTEGER },
+    );
+
+    expect(result).toHaveLength(MAX_PER_DAY);
   });
 
   it('leaves an alarm without a window exactly as it was', () => {

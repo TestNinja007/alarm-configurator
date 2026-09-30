@@ -107,7 +107,7 @@ which **times** on each of those days:
 | --- | --- |
 | `endTimeOfDay` | Closes the window each day. Not the same as `endDate`, which ends the series. |
 | `repeatEvery` | 1 to 1440. |
-| `repeatUnit` | `minutes` or `hours`. |
+| `repeatUnit` | `seconds`, `minutes` or `hours`. |
 
 All three arrive together or none does; a partial set is 422 on `repeatEvery`.
 `endTimeOfDay` must be later in the day than `timeOfDay` — the window does not
@@ -127,6 +127,22 @@ any is returned. An alarm never reports the same instant twice.
 
 Every occurrence counts individually towards `endAfterOccurrences`, not one per
 day.
+
+**A window may produce at most 4,000 occurrences a day**, and a request over
+that is 422 on `endTimeOfDay` with code `window_too_dense`. The message says
+how wide the window may be at that interval. In practice:
+
+| Interval | Widest window |
+| --- | --- |
+| Every second | about 1h 6m |
+| Every 10 seconds | about 11 hours |
+| Every minute | a full day |
+
+The ceiling exists because of R-08 rather than because of the clock: conflict
+detection compares two alarms' entire occurrence sets across ninety days, and
+this bounds that at 360,000 each. Both ends of a window count, so ten hours at
+ten-second intervals is 3,601 occurrences rather than 3,600 — which is why the
+limit is not the rounder-looking number.
 
 ### Conflicts, and why enabling is special
 
