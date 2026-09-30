@@ -414,6 +414,10 @@ a:focus-visible {
   cursor: pointer;
 }
 
+.danger-zone {
+  border-color: #eab8b4;
+}
+
 .notification-actions {
   display: flex;
   flex-wrap: wrap;
