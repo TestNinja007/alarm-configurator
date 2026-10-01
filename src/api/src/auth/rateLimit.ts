@@ -85,6 +85,29 @@ export function consumePasswordReset(email: string): boolean {
   return true;
 }
 
+/**
+ * Speech generation, keyed on the user rather than an address. Generating
+ * audio costs money at a real provider, so a caller must not be able to sit in
+ * a loop doing it.
+ */
+const MAX_SYNTHESIS = 60;
+const synthesis = new Map<string, Window>();
+
+export function consumeSynthesis(userId: string): boolean {
+  const now = clock.now().getTime();
+  const existing = synthesis.get(userId);
+
+  if (!existing || now - existing.startedAt >= WINDOW_MS) {
+    synthesis.set(userId, { count: 1, startedAt: now });
+    return true;
+  }
+
+  if (existing.count >= MAX_SYNTHESIS) return false;
+
+  existing.count += 1;
+  return true;
+}
+
 export function clearLoginAttempts(email: string): void {
   windows.delete(key(email));
 }
@@ -94,4 +117,5 @@ export function resetLoginAttempts(): void {
   windows.clear();
   registrations.clear();
   resets.clear();
+  synthesis.clear();
 }

@@ -105,6 +105,15 @@ export const config = {
     /** Brevo REST API key, the one beginning xkeysib-. Only used by `brevo`. */
     apiKey: process.env.MAIL_API_KEY,
   },
+  /**
+   * Server-side speech. `mock` generates real playable audio locally, so the
+   * whole path can be exercised without an account, a key or a quota.
+   */
+  tts: {
+    provider: (process.env.TTS_PROVIDER ?? 'none') as 'none' | 'mock' | 'elevenlabs',
+    apiKey: process.env.TTS_API_KEY,
+    model: process.env.TTS_MODEL ?? 'eleven_multilingual_v2',
+  },
   /** Directory holding the built SPA; absent during API-only development. */
   webDistDir: resolve(repoRoot, 'src', 'web', 'dist'),
   version: '0.1.0',
