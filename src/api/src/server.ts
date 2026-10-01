@@ -14,6 +14,7 @@ import { healthRoutes } from './routes/health.js';
 import { meRoutes } from './routes/me.js';
 import { testRoutes } from './routes/test.js';
 import { occurrenceRoutes } from './routes/occurrences.js';
+import { speechRoutes } from './routes/speech.js';
 
 export const API_PREFIX = '/api/v1';
 
@@ -78,6 +79,7 @@ export async function buildServer(): Promise<FastifyInstance> {
       await api.register(alarmRoutes);
       await api.register(occurrenceRoutes);
       await api.register(meRoutes);
+      await api.register(speechRoutes);
 
       // T-01..T-03 exist only with the flag on; without it they are never
       // registered, so they are missing from the router and the document alike.

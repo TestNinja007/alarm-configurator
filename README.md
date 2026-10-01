@@ -391,6 +391,44 @@ Voices load asynchronously in Chromium, so the first `getVoices()` after a page
 load returns nothing. Anything showing which voice will be used has to subscribe
 to `voiceschanged` or it reports the fallback for ever.
 
+### Generated audio
+
+The browser's own voices differ from machine to machine. A provider gives every
+listener the same voice, at the cost of an API key and a quota.
+
+`TTS_PROVIDER` picks how:
+
+| Value | Behaviour |
+| --- | --- |
+| `none` | No server audio. The browser speaks for itself. The default. |
+| `mock` | Generates a real, playable WAV locally. No account, no network, no cost. |
+| `elevenlabs` | The provider. Needs `TTS_API_KEY`. |
+
+`mock` exists so the whole path — request, cache, storage, playback, fallback —
+can be exercised before anyone has a key, and so tests never depend on a third
+party being up or on a quota not being spent. Its tone is lower for `male` than
+`female` and longer for longer text, so one message is audibly different from
+another and a test can assert that a longer sentence really did produce a
+longer file.
+
+**Audio is cached** in `speech_audio`, keyed by a sha256 of provider, voice and
+the exact words. A free tier is measured in characters a month, and previewing
+a message while editing it would otherwise exhaust one in an afternoon. The
+response says `generated: true` the first time and `false` thereafter, which is
+the thing worth asserting. It lives in Postgres rather than on disk because the
+application's disk is ephemeral: a redeploy would throw the cache away and the
+next preview would pay for everything again.
+
+| Endpoint | |
+| --- | --- |
+| `POST /speech` | `{ text, voice }` → an id and a url. 60 per user per 15 minutes. |
+| `GET /speech/{id}` | The bytes. Immutable, since the id is a hash of the content. |
+| `GET /speech/settings` | Whether server audio is on, and which provider. |
+
+**Every failure falls back to the browser's voice.** A missing key, a spent
+quota, a timeout, a refused autoplay — an alarm that says nothing because the
+provider was down is worse than one that speaks in the wrong voice.
+
 ## Desktop notifications
 
 While the app is open in a tab, alarms raise native notifications on Windows and

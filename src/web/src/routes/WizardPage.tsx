@@ -13,11 +13,11 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import {
   SPEECH_MAX_LENGTH,
   resolveVoice,
-  speak,
   speechSupported,
   subscribeToVoices,
   voicesSnapshot,
 } from '../lib/speech';
+import { say } from '../lib/audioSpeech';
 import { speechFor } from '../lib/speechTemplate';
 import { OccurrencePreview } from '../components/OccurrencePreview';
 import { useToast } from '../components/Toaster';
@@ -478,7 +478,7 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
                               <button
                                 type="button"
                                 className="button"
-                                onClick={() => line && speak(line, form.speechVoice)}
+                                onClick={() => line && void say(line, form.speechVoice)}
                                 disabled={!speechSupported()}
                                 aria-label={`Hear message ${index + 1}`}
                                 data-testid="alarm-speech-preview-button"

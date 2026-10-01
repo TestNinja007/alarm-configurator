@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
-import { speak } from '../lib/speech';
+import { say } from '../lib/audioSpeech';
 import { speechFor } from '../lib/speechTemplate';
 import type { UpcomingList, UpcomingOccurrence } from '../api/types';
 
@@ -105,7 +105,9 @@ export function useAlarmNotifications() {
     // depend on where this occurrence sits in its day, so the second of three
     // warnings can say so without anyone writing three messages.
     const words = speechFor(occurrence, occurrence);
-    if (words) speak(words, occurrence.speechVoice ?? 'female');
+    // Deliberately not awaited: the notification must appear at the instant
+    // the alarm is due, not after a round trip for audio.
+    if (words) void say(words, occurrence.speechVoice ?? 'female');
 
     try {
       const notification = new Notification(occurrence.alarmName, {
