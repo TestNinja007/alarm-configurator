@@ -604,6 +604,7 @@ rule.
 | --- | --- |
 | [`docs/seed.md`](docs/seed.md) | Every seeded record with its id, generated from the fixtures by `npm run docs:seed` so it cannot drift. |
 | [`docs/schema.md`](docs/schema.md) | Tables, constraints, the time-storage convention and an ER diagram. |
+| [`docs/ideas.md`](docs/ideas.md) | Things discussed but not built, and what would be needed first. |
 | [`docs/decisions/`](docs/decisions/) | Why TypeBox, why a discriminated union, why one clock, why enabling skips the R-08 check, why no ORM. |
 
 ## Checks
