@@ -6,6 +6,7 @@ import { AppError, notFound, validationError } from '../errors.js';
 import { audioFor, findAudio } from '../speech/cache.js';
 import { SynthesisError, serverSpeechEnabled } from '../speech/providers.js';
 import { consumeSynthesis } from '../auth/rateLimit.js';
+import { limitsFor, tierOf } from '../domain/tiers.js';
 import { errorResponses } from '../schemas/common.js';
 
 /**
@@ -53,6 +54,11 @@ export async function speechRoutes(app: FastifyInstance): Promise<void> {
       // Absent rather than refused when switched off, so it reads the same as
       // a route that was never built.
       if (!serverSpeechEnabled()) throw notFound('Route');
+
+      // Not an error the caller must handle: the client falls back to the
+      // browser's own voice, exactly as it does when a provider is unreachable.
+      const tier = await tierOf(request.user!.id);
+      if (!limitsFor(tier).generatedSpeech) throw notFound('Route');
 
       const text = request.body.text.trim();
       if (!text) {
@@ -134,8 +140,9 @@ export async function speechRoutes(app: FastifyInstance): Promise<void> {
         },
       },
     },
-    async () => ({
-      enabled: serverSpeechEnabled(),
+    async (request) => ({
+      // Reports what *this* account can do, not merely what the server offers.
+      enabled: serverSpeechEnabled() && limitsFor(await tierOf(request.user!.id)).generatedSpeech,
       provider: config.tts.provider,
       maxLength: SPEECH_MAX_LENGTH,
     }),

@@ -9,6 +9,7 @@ import { isUniqueViolation, query, queryOne } from '../db/pool.js';
 import { conflict, notFound } from '../errors.js';
 import { toAlarm, type AlarmRow } from '../domain/mappers.js';
 import { findCollision, specFromRow } from '../domain/conflicts.js';
+import { assertCanAddAlarm, assertScheduleAllowed, tierOf } from '../domain/tiers.js';
 import { validateSchedule } from '../domain/validation.js';
 import { nextOccurrence } from '../recurrence/engine.js';
 import { normaliseRule } from '../schemas/rule.js';
@@ -207,6 +208,10 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
       await assertOwnsFolder(request.user!.id, request.body.folderId);
       const { timezone } = validateSchedule(request.body);
 
+      const tier = await tierOf(request.user!.id);
+      assertScheduleAllowed(tier, request.body);
+      await assertCanAddAlarm(request.body.folderId, tier);
+
       const enabled = request.body.enabled ?? true;
       // A disabled alarm is invisible to R-08, so the check is skipped entirely.
       if (enabled) {
@@ -301,6 +306,12 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
 
       await assertOwnsFolder(request.user!.id, request.body.folderId);
       const { timezone } = validateSchedule(request.body);
+
+      const tier = await tierOf(request.user!.id);
+      assertScheduleAllowed(tier, request.body);
+      // Moving an alarm into another folder must respect that folder's count,
+      // so the alarm being moved is excluded from its own check.
+      await assertCanAddAlarm(request.body.folderId, tier, request.params.id);
 
       // An update keeps the alarm's enabled state; only an enabled alarm can
       // collide, and it must not be compared against its own previous rows.

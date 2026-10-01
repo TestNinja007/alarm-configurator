@@ -7,6 +7,7 @@ import swagger from '@fastify/swagger';
 import { config } from './config.js';
 import { buildErrorBody, registerErrorHandler } from './http/errorHandler.js';
 import { registerRequestId } from './http/requestId.js';
+import { adminRoutes } from './routes/admin.js';
 import { alarmRoutes } from './routes/alarms.js';
 import { authRoutes } from './routes/auth.js';
 import { folderRoutes } from './routes/folders.js';
@@ -77,6 +78,7 @@ export async function buildServer(): Promise<FastifyInstance> {
       await api.register(authRoutes);
       await api.register(folderRoutes);
       await api.register(alarmRoutes);
+      await api.register(adminRoutes);
       await api.register(occurrenceRoutes);
       await api.register(meRoutes);
       await api.register(speechRoutes);

@@ -421,8 +421,11 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         name: string;
         password_hash: string;
         email_verified_at: Date | null;
+        suspended_at: Date | null;
+        role: 'user' | 'admin';
+        tier: 'basic' | 'regular' | 'advanced';
       }>(
-        `SELECT id, email, name, password_hash, email_verified_at
+        `SELECT id, email, name, password_hash, email_verified_at, suspended_at, role, tier
            FROM users WHERE lower(btrim(email)) = lower(btrim($1))`,
         [email],
       );
@@ -431,6 +434,13 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       // which addresses have accounts.
       const ok = row ? await verifyPassword(request.body.password, row.password_hash) : false;
       if (!row || !ok) throw unauthenticated('Email or password is incorrect.');
+
+      // Told only to someone who has already proved they know the password.
+      if (row.suspended_at) {
+        throw new AppError('unauthenticated', 'This account has been suspended.', {
+          details: { reason: 'account_suspended' },
+        });
+      }
 
       // Only told to someone who has already proved they know the password,
       // so it reveals nothing to an outsider.
@@ -448,7 +458,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         .setCookie(CSRF_COOKIE, session.csrfToken, { ...cookieOptions, httpOnly: false });
 
       return {
-        user: { id: row.id, email: row.email, name: row.name },
+        user: { id: row.id, email: row.email, name: row.name, role: row.role, tier: row.tier },
         csrfToken: session.csrfToken,
       };
     },

@@ -83,6 +83,8 @@ const ProfileSchema = Type.Object({
   id: UuidSchema,
   email: Type.String(),
   name: Type.String(),
+  role: Type.Union([Type.Literal('user'), Type.Literal('admin')]),
+  tier: Type.Union([Type.Literal('basic'), Type.Literal('regular'), Type.Literal('advanced')]),
 });
 
 const DeleteAccountBodySchema = Type.Object(
@@ -116,9 +118,15 @@ export async function meRoutes(app: FastifyInstance): Promise<void> {
         ]);
       }
 
-      const row = await queryOne<{ id: string; email: string; name: string }>(
+      const row = await queryOne<{
+        id: string;
+        email: string;
+        name: string;
+        role: 'user' | 'admin';
+        tier: 'basic' | 'regular' | 'advanced';
+      }>(
         `UPDATE users SET name = $1, updated_at = $2 WHERE id = $3
-         RETURNING id, email, name`,
+         RETURNING id, email, name, role, tier`,
         [name, clock.now(), request.user!.id],
       );
       if (!row) throw notFound('Account');

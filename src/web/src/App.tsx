@@ -4,6 +4,7 @@ import { ApiError, api } from './api/client';
 import type { Session } from './api/types';
 import { DemoBanner } from './components/DemoBanner';
 import { NotificationProvider } from './components/NotificationProvider';
+import { AdminPage } from './routes/AdminPage';
 import { AlarmsPage } from './routes/AlarmsPage';
 import { FoldersPage } from './routes/FoldersPage';
 import { LoginPage } from './routes/LoginPage';
@@ -41,6 +42,11 @@ function TopBar({ session }: { session: Session }) {
       <span className="topbar-brand">Alarm Configurator</span>
       <div className="topbar-user">
         <span data-testid="topbar-user-name">{session.user.name}</span>
+        {session.user.role === 'admin' ? (
+          <Link className="button" to="/admin" data-testid="admin-link">
+            Accounts
+          </Link>
+        ) : null}
         <Link className="button" to="/settings" data-testid="settings-link">
           Settings
         </Link>
@@ -130,6 +136,10 @@ export function App() {
           <Route path="/reset-password" element={<Navigate to="/folders" replace />} />
           <Route path="/folders" element={<FoldersPage />} />
           <Route path="/settings" element={<SettingsPage user={session.data.user} />} />
+          {/* Only mounted for an administrator; the API answers 404 regardless. */}
+          {session.data.user.role === 'admin' ? (
+            <Route path="/admin" element={<AdminPage currentUserId={session.data.user.id} />} />
+          ) : null}
           <Route path="/folders/:folderId" element={<AlarmsPage />} />
           <Route path="/folders/:folderId/alarms/new" element={<WizardPage mode="create" />} />
           <Route path="/alarms/:alarmId/edit" element={<WizardPage mode="edit" />} />

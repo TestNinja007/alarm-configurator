@@ -55,13 +55,57 @@ proxy.
 
 ## Seeded users
 
-| Email | Password |
-| --- | --- |
-| `user-one@example.com` | `Password123!` |
-| `user-two@example.com` | `Password123!` |
+| Email | Password | Role | Tier |
+| --- | --- | --- | --- |
+| `user-one@example.com` | `Password123!` | user | advanced |
+| `user-two@example.com` | `Password123!` | user | basic |
+| `admin@example.com` | `Password123!` | admin | advanced |
 
 User two exists to prove isolation: a request for another user's folder or alarm
-returns 404, never 403.
+returns 404, never 403. The two ordinary accounts sit on different tiers on
+purpose — one where every feature is reachable, one where the limits are
+reachable — so neither has to be reconfigured before it is useful.
+
+## Roles and tiers
+
+Two independent things. A **role** says what you may administer; a **tier** says
+what you may create. Collapsing them would make "an administrator on the basic
+tier" unrepresentable, which is a perfectly ordinary account.
+
+| | basic | regular | advanced |
+| --- | --- | --- | --- |
+| Folders | 2 | 10 | unlimited |
+| Alarms per folder | 5 | 50 | unlimited |
+| Repeat within a day | no | yes | yes |
+| Shortest interval | — | 5 minutes | 1 second |
+| Generated speech | no | no | yes |
+
+Exceeding a count is **409** with `details.tier`, `details.limit` and
+`details.resource`. Asking for a feature the tier lacks is **422** with code
+`tier_limit` on the offending field. Generated speech is **404** instead — the
+client falls back to the browser's own voice, exactly as it does when a provider
+is unreachable, so this is a degradation rather than an error to handle.
+
+**Limits are counted, not cached.** A tier change takes effect on the next
+request, including for a session already signed in.
+
+**A downgrade never deletes anything.** An alarm created on a higher tier keeps
+working, but cannot be saved again until it fits the current one. Taking away
+what somebody already made would be worse than refusing to let them change it.
+
+### Administering accounts
+
+`GET /admin/users` and `PATCH /admin/users/{id}` change role, tier and
+suspension. Both answer **404 to a non-administrator** — the same way another
+person's folder does, so nothing confirms the routes exist.
+
+An administrator cannot demote or suspend themselves: either would lock them out
+of the page with no way back. Both are 409.
+
+**Suspending ends every session at once** rather than waiting for one to expire,
+and a suspended account cannot sign in — 401 with `details.reason` of
+`account_suspended`. Its folders and alarms are untouched, so restoring it
+restores everything.
 
 ## Environment variables
 

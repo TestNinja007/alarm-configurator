@@ -5,7 +5,7 @@ import { config } from '../config.js';
 import { withTransaction } from '../db/pool.js';
 import { clearCapturedMessages } from '../mail/mailer.js';
 import { SEED_ALARMS, SEED_FOLDERS } from './fixtures.js';
-import { SEED_USERS } from './users.js';
+import { SEED_USERS, SEED_USER_ROLES } from './users.js';
 
 export type SeedProfile = 'empty' | 'demo';
 
@@ -48,9 +48,18 @@ export async function seed(profile: SeedProfile = 'demo'): Promise<void> {
         // signed into and have no inbox, so leaving them unverified would make
         // every seeded login fail.
         `INSERT INTO users (id, external_key, email, name, password_hash,
-                            email_verified_at, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $6, $6)`,
-        [user.id, user.externalKey, user.email, user.name, hashes[index], createdAt],
+                            email_verified_at, role, tier, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $6, $6)`,
+        [
+          user.id,
+          user.externalKey,
+          user.email,
+          user.name,
+          hashes[index],
+          createdAt,
+          SEED_USER_ROLES[user.externalKey]?.role ?? 'user',
+          SEED_USER_ROLES[user.externalKey]?.tier ?? 'basic',
+        ],
       );
     }
 
