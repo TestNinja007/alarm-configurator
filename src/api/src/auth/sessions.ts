@@ -12,6 +12,8 @@ export interface SessionUser {
   id: string;
   email: string;
   name: string;
+  role: 'user' | 'admin';
+  tier: 'basic' | 'regular' | 'advanced';
 }
 
 export interface ActiveSession {
@@ -42,8 +44,10 @@ export async function loadSession(sessionId: string): Promise<ActiveSession | un
     user_id: string;
     email: string;
     name: string;
+    role: 'user' | 'admin';
+    tier: 'basic' | 'regular' | 'advanced';
   }>(
-    `SELECT s.id, s.csrf_token, u.id AS user_id, u.email, u.name
+    `SELECT s.id, s.csrf_token, u.id AS user_id, u.email, u.name, u.role, u.tier
        FROM sessions s
        JOIN users u ON u.id = s.user_id
       WHERE s.id = $1 AND s.expires_at > $2`,
@@ -55,7 +59,7 @@ export async function loadSession(sessionId: string): Promise<ActiveSession | un
   return {
     id: row.id,
     csrfToken: row.csrf_token,
-    user: { id: row.user_id, email: row.email, name: row.name },
+    user: { id: row.user_id, email: row.email, name: row.name, role: row.role, tier: row.tier },
   };
 }
 

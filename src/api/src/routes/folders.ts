@@ -6,6 +6,7 @@ import { clock } from '../clock.js';
 import { isUniqueViolation, query, queryOne } from '../db/pool.js';
 import { conflict, notFound } from '../errors.js';
 import { toFolder, type FolderRow } from '../domain/mappers.js';
+import { assertCanAddFolder, tierOf } from '../domain/tiers.js';
 import {
   CreateFolderBodySchema,
   DeleteFolderQuerySchema,
@@ -75,6 +76,10 @@ export async function folderRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request, reply) => {
       const name = request.body.name.trim();
+
+      // Checked before anything is written, so a refusal leaves nothing behind.
+      await assertCanAddFolder(request.user!.id, await tierOf(request.user!.id));
+
       const now = clock.now();
       const id = randomUUID();
 

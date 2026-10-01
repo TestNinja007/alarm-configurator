@@ -8,10 +8,44 @@ export type Rule =
   | { type: 'monthly_nth'; nth: 1 | 2 | 3 | 4 | -1; weekday: Weekday }
   | { type: 'interval'; every: number; unit: 'days' | 'weeks' | 'months' };
 
+export type Role = 'user' | 'admin';
+export type Tier = 'basic' | 'regular' | 'advanced';
+
 export interface User {
   id: string;
   email: string;
   name: string;
+  role: Role;
+  tier: Tier;
+}
+
+export interface TierLimits {
+  maxFolders: number | null;
+  maxAlarmsPerFolder: number | null;
+  repeatWithinDay: boolean;
+  minRepeatSeconds: number | null;
+  generatedSpeech: boolean;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  name: string;
+  role: Role;
+  tier: Tier;
+  verified: boolean;
+  suspended: boolean;
+  /** Seeded demonstration accounts, which the UI protects. */
+  seeded: boolean;
+  folders: number;
+  alarms: number;
+  createdAt: string;
+}
+
+export interface AdminUserList {
+  items: AdminUser[];
+  /** Published by the API so the UI never hard-codes the limits. */
+  tiers: Record<string, TierLimits>;
 }
 
 export interface Session {

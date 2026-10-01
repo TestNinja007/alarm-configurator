@@ -10,13 +10,15 @@ export const LoginBodySchema = Type.Object(
 );
 export type LoginBody = Static<typeof LoginBodySchema>;
 
-export const UserSchema = Type.Object(
-  {
-    id: UuidSchema,
-    email: Type.String(),
-    name: Type.String(),
-  }
-);
+export const UserSchema = Type.Object({
+  id: UuidSchema,
+  email: Type.String(),
+  name: Type.String(),
+  /** What the account may administer. */
+  role: Type.Union([Type.Literal('user'), Type.Literal('admin')]),
+  /** What the account may create. */
+  tier: Type.Union([Type.Literal('basic'), Type.Literal('regular'), Type.Literal('advanced')]),
+});
 
 export const SessionSchema = Type.Object({
   user: UserSchema,
