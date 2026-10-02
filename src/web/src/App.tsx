@@ -39,7 +39,7 @@ function TopBar({ session }: { session: Session }) {
 
   return (
     <header className="topbar" data-testid="app-topbar">
-      <span className="topbar-brand">Alarm Configurator</span>
+      <span className="topbar-brand">Nudge</span>
       <div className="topbar-user">
         <span data-testid="topbar-user-name">{session.user.name}</span>
         {session.user.role === 'admin' ? (

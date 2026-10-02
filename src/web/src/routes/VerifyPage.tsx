@@ -51,7 +51,10 @@ export function VerifyPage() {
 
   return (
     <main className="page page-narrow" data-testid="verify-page">
-      <h1 className="page-title">Alarm Configurator</h1>
+      <header className="auth-brand" data-testid="auth-brand">
+        <h1 className="auth-wordmark">Nudge</h1>
+        <p className="auth-tagline">Alarms that actually find you.</p>
+      </header>
 
       <form className="card form" onSubmit={onSubmit} noValidate data-testid="verify-form">
         <h2 className="card-title">Confirm your email</h2>

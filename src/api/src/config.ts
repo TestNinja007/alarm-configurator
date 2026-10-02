@@ -101,7 +101,7 @@ export const config = {
     ignoreTls: process.env.MAIL_IGNORE_TLS === '1',
     user: process.env.MAIL_USER,
     password: process.env.MAIL_PASSWORD,
-    from: process.env.MAIL_FROM ?? 'Alarm Configurator <no-reply@alarm-configurator.test>',
+    from: process.env.MAIL_FROM ?? 'Nudge <no-reply@nudge.test>',
     /** Brevo REST API key, the one beginning xkeysib-. Only used by `brevo`. */
     apiKey: process.env.MAIL_API_KEY,
   },

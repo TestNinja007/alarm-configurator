@@ -18,7 +18,7 @@ async function main(): Promise<void> {
   await app.listen({ port: config.port, host: config.host });
   app.log.info(
     { testSupport: config.testSupport, listDelayMs: config.listDelayMs },
-    'Alarm Configurator ready',
+    'Nudge ready',
   );
 }
 

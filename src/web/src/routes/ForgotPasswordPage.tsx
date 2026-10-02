@@ -33,7 +33,10 @@ export function ForgotPasswordPage() {
 
   return (
     <main className="page page-narrow" data-testid="forgot-password-page">
-      <h1 className="page-title">Alarm Configurator</h1>
+      <header className="auth-brand" data-testid="auth-brand">
+        <h1 className="auth-wordmark">Nudge</h1>
+        <p className="auth-tagline">Alarms that actually find you.</p>
+      </header>
 
       <form className="card form" onSubmit={onSubmit} noValidate data-testid="forgot-password-form">
         <h2 className="card-title">Reset your password</h2>
