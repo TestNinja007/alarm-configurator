@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
 import type { Session } from '../api/types';
+import { Logo } from '../components/Logo';
 import { PasswordField } from '../components/PasswordField';
 
 export function LoginPage() {
@@ -39,8 +40,11 @@ export function LoginPage() {
   return (
     <main className="page page-narrow" data-testid="login-page">
       <header className="auth-brand" data-testid="auth-brand">
-        <h1 className="auth-wordmark">Nudge</h1>
-        <p className="auth-tagline">Alarms that actually find you.</p>
+        <div className="auth-lockup">
+          <Logo size={44} />
+          <h1 className="auth-wordmark">Nudge</h1>
+        </div>
+        <p className="auth-tagline">Alarms that actually work with you.</p>
       </header>
 
       <form className="card form" onSubmit={onSubmit} noValidate data-testid="login-form">
