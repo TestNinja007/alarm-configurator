@@ -1,4 +1,8 @@
-# Alarm Configurator
+# Nudge
+
+Formerly "Alarm Configurator" — the repository, package and database names keep
+the old one, since renaming those is noise for no benefit. Only what a person
+sees says Nudge.
 
 A small web application for configuring recurring alarms: folders hold alarms,
 an alarm is a local time of day plus an IANA time zone plus a repetition rule,

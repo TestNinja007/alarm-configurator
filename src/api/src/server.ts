@@ -46,7 +46,7 @@ export async function buildServer(): Promise<FastifyInstance> {
     openapi: {
       openapi: '3.1.0',
       info: {
-        title: 'Alarm Configurator',
+        title: 'Nudge',
         version: config.version,
         description:
           'Configuration of recurring alarms. Every instant is UTC with a Z suffix. ' +
