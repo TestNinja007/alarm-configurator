@@ -3,6 +3,7 @@ import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-r
 import { ApiError, api } from './api/client';
 import type { Session } from './api/types';
 import { DemoBanner } from './components/DemoBanner';
+import { Logo } from './components/Logo';
 import { NotificationProvider } from './components/NotificationProvider';
 import { AdminPage } from './routes/AdminPage';
 import { AlarmsPage } from './routes/AlarmsPage';
@@ -39,7 +40,10 @@ function TopBar({ session }: { session: Session }) {
 
   return (
     <header className="topbar" data-testid="app-topbar">
-      <span className="topbar-brand">Nudge</span>
+      <span className="topbar-brand">
+        <Logo size={22} />
+        Nudge
+      </span>
       <div className="topbar-user">
         <span data-testid="topbar-user-name">{session.user.name}</span>
         {session.user.role === 'admin' ? (
@@ -69,8 +73,12 @@ export function App() {
 
   if (session.isLoading) {
     return (
-      <div className="page page-narrow" aria-busy="true" data-testid="app-loading">
-        <p>Loading…</p>
+      <div className="page app-splash" aria-busy="true" data-testid="app-loading">
+        <div className="auth-lockup">
+          <Logo size={44} />
+          <p className="auth-wordmark">Nudge</p>
+        </div>
+        <p className="auth-tagline">Loading…</p>
       </div>
     );
   }

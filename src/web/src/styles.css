@@ -61,6 +61,9 @@ body {
 }
 
 .topbar-brand {
+  display: flex;
+  gap: 8px;
+  align-items: center;
   font-weight: 600;
 }
 
@@ -91,28 +94,74 @@ body {
   padding-bottom: 48px;
 }
 
+/*
+ * A wash behind the signed-out pages, so the card has something to sit on.
+ * Fixed and behind everything: it never moves with the content and takes no
+ * part in layout, which is why it is a pseudo-element and not a wrapper.
+ */
+.page-narrow::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(48rem 32rem at 18% 22%, rgb(29 78 216 / 10%), transparent 62%),
+    radial-gradient(40rem 30rem at 86% 84%, rgb(29 78 216 / 6%), transparent 60%);
+  pointer-events: none;
+}
+
 .auth-brand {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   text-align: center;
+}
+
+/* Mark and wordmark travel together, whichever way the page is arranged. */
+.auth-lockup {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+}
+
+.logo {
+  color: var(--accent);
+  flex: 0 0 auto;
 }
 
 .auth-wordmark {
   margin: 0;
   font-size: 2.1rem;
   font-weight: 650;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
   color: var(--text);
 }
 
 .auth-tagline {
-  margin: 4px 0 0;
+  margin: 6px 0 0;
   color: var(--muted);
-  font-size: 0.92rem;
+  font-size: 0.95rem;
 }
 
+/*
+ * The moment before the session is known. Its own class rather than
+ * .page-narrow, which becomes a two-column grid on wide screens and would
+ * strand a lone lockup in the left-hand column.
+ */
+.app-splash {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 48px);
+}
+
+/* A surface rather than an outline, so the form sits above the page. */
 .page-narrow .card {
   margin-bottom: 0;
-  padding: 24px;
+  padding: 26px;
+  box-shadow:
+    0 1px 2px rgb(16 20 26 / 5%),
+    0 10px 30px rgb(16 20 26 / 7%);
 }
 
 .page-narrow .card-title {
@@ -134,6 +183,41 @@ body {
 
 .page-narrow .form-footer + .form-footer {
   margin-top: -6px;
+}
+
+/*
+ * Two columns once there is room for them: brand on the left, form on the
+ * right. Narrower than this the same elements simply stack — one set of
+ * markup in two arrangements, so nothing is duplicated or hidden.
+ */
+@media (min-width: 900px) {
+  .page-narrow {
+    max-width: 840px;
+    display: grid;
+    grid-template-columns: 1fr 370px;
+    align-items: center;
+    gap: 56px;
+  }
+
+  .page-narrow .auth-brand {
+    margin-bottom: 0;
+    text-align: left;
+  }
+
+  .page-narrow .auth-lockup {
+    justify-content: flex-start;
+  }
+
+  .page-narrow .auth-wordmark {
+    font-size: 2.9rem;
+  }
+
+  .page-narrow .auth-tagline {
+    margin-top: 10px;
+    font-size: 1.15rem;
+    max-width: 26ch;
+    text-wrap: balance;
+  }
 }
 
 .page-header {

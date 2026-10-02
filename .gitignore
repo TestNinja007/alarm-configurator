@@ -3,3 +3,6 @@ dist/
 .env
 *.log
 .DS_Store
+
+# The editor/agent launch config is local tooling, not part of the app.
+.claude/
