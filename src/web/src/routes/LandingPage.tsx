@@ -14,25 +14,71 @@ const REPO_URL = 'https://github.com/TestNinja007/alarm-configurator';
 /**
  * The range, drawn as a line rather than described in a paragraph.
  *
- * This is the one claim a visitor can check at a glance: interval timers own
- * the left end and know nothing about next week, calendars own the right end
- * and cannot count in seconds. Covering both is the whole argument.
+ * Deliberately stops at hours. Daily and weekly were on here and were cut:
+ * every reminder app on earth does daily, so putting it on the scale spends a
+ * stop proving something nobody doubts and dilutes the part that is actually
+ * uncommon. Seconds to hours is the band being claimed.
  */
 const SCALE = [
-  { interval: '30 seconds', example: 'Squats — 30 on, 10 off' },
-  { interval: '2 minutes', example: 'A cue inside a meditation' },
-  { interval: '25 minutes', example: 'Pomodoro, then five off' },
-  { interval: '90 minutes', example: 'Stand up and stretch' },
-  { interval: 'Daily', example: 'The morning run' },
-  { interval: 'Every third Tuesday', example: 'Because some things are' },
+  {
+    interval: '30 seconds',
+    example:
+      'Squats — thirty on, ten off, eight rounds. The voice counts you through it, so you never look at the screen.',
+  },
+  {
+    interval: '2 minutes',
+    example:
+      'A cue inside a ten-minute meditation. You know where you are in it without opening your eyes.',
+  },
+  {
+    interval: '25 minutes',
+    example:
+      'Pomodoro, then five off, four times over — and a different sentence each time it comes back.',
+  },
+  {
+    interval: '90 minutes',
+    example:
+      'Stand up and stretch, from the first hour of the working day to the last, whether or not you meant to.',
+  },
 ];
 
-/** Folders, shown as what they are actually for. */
-const PRESETS = [
-  { folder: 'Workout', name: 'Legs', detail: '30s on, 10s off, eight rounds' },
-  { folder: 'Meditation', name: 'Short', detail: '10 minutes, a cue every two' },
-  { folder: 'Work', name: 'Deep', detail: '50 on, 10 off, four rounds' },
-  { folder: 'Home', name: 'Sunday', detail: 'Plan the week, 19:00' },
+/**
+ * Folders, shown as what they are actually for: three presets each, because
+ * one apiece demonstrated nothing a reader could not already assume.
+ */
+const FOLDERS = [
+  {
+    name: 'Workout',
+    presets: [
+      { name: 'Legs', detail: '30s on, 10s off, eight rounds' },
+      { name: 'Quick HIIT', detail: '20s on, 10s off, eight rounds' },
+      { name: 'Cool down', detail: '60s a stretch, five of them' },
+    ],
+  },
+  {
+    name: 'Meditation',
+    presets: [
+      { name: 'Short', detail: '10 minutes, a cue every two' },
+      { name: 'Long', detail: '30 minutes, a cue every five' },
+      { name: 'Box breathing', detail: '4 in, 7 hold, 8 out' },
+    ],
+  },
+  {
+    name: 'Work',
+    presets: [
+      { name: 'Deep', detail: '50 on, 10 off, four rounds' },
+      { name: 'Admin', detail: '25 on, 5 off, twice' },
+      { name: 'Stand up', detail: 'Every 90 minutes until six' },
+    ],
+  },
+  {
+    name: 'Home',
+    presets: [
+      { name: 'Cooking', detail: 'Stir every 90 seconds' },
+      { name: 'Wind down', detail: '20 minutes, a cue every five' },
+      { name: 'Sunday', detail: 'Plan the week, 19:00' },
+    ],
+  },
 ];
 
 /**
@@ -193,21 +239,20 @@ export function LandingPage() {
         </div>
 
         <p className="landing-prose landing-prose-close">
-          Nudge does not help you plan your day. It helps you make the most of a
-          plan you already had in mind.
+          Nudge does not help you plan your day. It helps you make the most of
+          an idea that pops into your head.
         </p>
       </section>
 
       <section className="landing-section" data-testid="landing-scale-section">
-        <h2 className="landing-section-title">
-          Thirty seconds, or every third Tuesday
-        </h2>
+        <h2 className="landing-section-title">Thirty seconds. Or ninety minutes.</h2>
 
         <p className="landing-prose">
-          Interval timers are good at seconds and know nothing about next week.
-          Calendars are good at weeks and cannot count in seconds. Nudge covers
-          the whole range, with one way of thinking about it — and tells you
-          when two of them want the same minute.
+          Reminder apps start at a minute and are really built for days, because
+          a calendar has no reason to count smaller. Interval timers go down to
+          a second and then forget you exist the moment the session ends. The
+          band in between is where a body actually lives, and it is the one
+          nothing covers properly.
         </p>
 
         <ol className="landing-scale" data-testid="landing-scale">
@@ -219,31 +264,40 @@ export function LandingPage() {
             </li>
           ))}
         </ol>
+
+        <p className="landing-prose landing-prose-close">
+          And it still does weekdays, monthly, and every third Tuesday — it just
+          does not stop there.
+        </p>
       </section>
 
-      <section className="panel panel-white landing-detail" data-testid="landing-presets">
-        <div className="landing-detail-copy">
-          <h2 className="landing-detail-title">Build it once. Keep it.</h2>
-          <p>
-            The reason people delete alarms is that an uncategorised list stops
-            being usable — so the work goes in the bin, and next time you build
-            the same thing again from scratch.
-          </p>
-          <p>
-            Folders make an alarm a preset. When the moment arrives, open the
-            folder. It is already there.
-          </p>
-        </div>
+      <section className="panel panel-white landing-library" data-testid="landing-presets">
+        <h2 className="landing-library-title">Build it once. Keep it.</h2>
+        <p>
+          The reason people delete alarms is that an uncategorised list stops
+          being usable — so the work goes in the bin, and next time you build
+          the same thing again from scratch.
+        </p>
+        <p>
+          Folders make an alarm a preset. When the moment arrives, open the
+          folder. It is already there.
+        </p>
 
-        <ul className="landing-presets">
-          {PRESETS.map((preset) => (
-            <li key={`${preset.folder}/${preset.name}`}>
-              <span className="landing-preset-folder">{preset.folder}</span>
-              <span className="landing-preset-name">{preset.name}</span>
-              <span className="landing-preset-detail">{preset.detail}</span>
-            </li>
+        <div className="landing-folders">
+          {FOLDERS.map((folder) => (
+            <article className="landing-folder" key={folder.name}>
+              <h3 className="landing-folder-name">{folder.name}</h3>
+              <ul>
+                {folder.presets.map((preset) => (
+                  <li key={preset.name}>
+                    <span className="landing-preset-name">{preset.name}</span>
+                    <span className="landing-preset-detail">{preset.detail}</span>
+                  </li>
+                ))}
+              </ul>
+            </article>
           ))}
-        </ul>
+        </div>
       </section>
 
       <footer className="landing-footer">
