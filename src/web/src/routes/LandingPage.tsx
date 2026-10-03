@@ -12,6 +12,30 @@ import {
 const REPO_URL = 'https://github.com/TestNinja007/alarm-configurator';
 
 /**
+ * The range, drawn as a line rather than described in a paragraph.
+ *
+ * This is the one claim a visitor can check at a glance: interval timers own
+ * the left end and know nothing about next week, calendars own the right end
+ * and cannot count in seconds. Covering both is the whole argument.
+ */
+const SCALE = [
+  { interval: '30 seconds', example: 'Squats — 30 on, 10 off' },
+  { interval: '2 minutes', example: 'A cue inside a meditation' },
+  { interval: '25 minutes', example: 'Pomodoro, then five off' },
+  { interval: '90 minutes', example: 'Stand up and stretch' },
+  { interval: 'Daily', example: 'The morning run' },
+  { interval: 'Every third Tuesday', example: 'Because some things are' },
+];
+
+/** Folders, shown as what they are actually for. */
+const PRESETS = [
+  { folder: 'Workout', name: 'Legs', detail: '30s on, 10s off, eight rounds' },
+  { folder: 'Meditation', name: 'Short', detail: '10 minutes, a cue every two' },
+  { folder: 'Work', name: 'Deep', detail: '50 on, 10 off, four rounds' },
+  { folder: 'Home', name: 'Sunday', detail: 'Plan the week, 19:00' },
+];
+
+/**
  * What a signed-out visitor lands on.
  *
  * Separate from the sign-in form rather than bolted on top of it: a form wants
@@ -139,29 +163,86 @@ export function LandingPage() {
         </div>
       </section>
 
-      <section className="panel panel-white landing-detail" data-testid="landing-detail">
+      <section className="landing-section" data-testid="landing-difference">
+        <h2 className="landing-section-title">Not a planner</h2>
+
+        <p className="landing-prose">
+          There are a thousand apps for laying a day out in advance. If that is
+          how you work, use one of those — they are good at it.
+        </p>
+
+        <div className="landing-contrast">
+          <article className="panel panel-peach landing-contrast-card">
+            <h3 className="landing-card-title">If you plan to the minute</h3>
+            <p>
+              Meditation at 14:00. Workout at 18:30. The day decided the night
+              before, and followed.
+            </p>
+            <p className="landing-contrast-verdict">Nudge is not for you.</p>
+          </article>
+
+          <article className="panel panel-mint landing-contrast-card">
+            <h3 className="landing-card-title">If you decide in the moment</h3>
+            <p>
+              &ldquo;I want to train today, at some point.&rdquo; Then a gap
+              appears — and what you need is the structure ready to go, not a
+              form to fill in first.
+            </p>
+            <p className="landing-contrast-verdict">This is the whole idea.</p>
+          </article>
+        </div>
+
+        <p className="landing-prose landing-prose-close">
+          Nudge does not help you plan your day. It helps you make the most of a
+          plan you already had in mind.
+        </p>
+      </section>
+
+      <section className="landing-section" data-testid="landing-scale-section">
+        <h2 className="landing-section-title">
+          Thirty seconds, or every third Tuesday
+        </h2>
+
+        <p className="landing-prose">
+          Interval timers are good at seconds and know nothing about next week.
+          Calendars are good at weeks and cannot count in seconds. Nudge covers
+          the whole range, with one way of thinking about it — and tells you
+          when two of them want the same minute.
+        </p>
+
+        <ol className="landing-scale" data-testid="landing-scale">
+          {SCALE.map((stop) => (
+            <li key={stop.interval}>
+              <span className="landing-scale-mark" aria-hidden="true" />
+              <span className="landing-scale-interval">{stop.interval}</span>
+              <span className="landing-scale-example">{stop.example}</span>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section className="panel panel-white landing-detail" data-testid="landing-presets">
         <div className="landing-detail-copy">
-          <h2 className="landing-detail-title">It works out when each one lands</h2>
+          <h2 className="landing-detail-title">Build it once. Keep it.</h2>
           <p>
-            Daily, weekly, weekdays only, every third Tuesday. Nudge does the
-            arithmetic, warns you when two alarms collide, and keeps the rest to
-            itself.
+            The reason people delete alarms is that an uncategorised list stops
+            being usable — so the work goes in the bin, and next time you build
+            the same thing again from scratch.
+          </p>
+          <p>
+            Folders make an alarm a preset. When the moment arrives, open the
+            folder. It is already there.
           </p>
         </div>
 
-        <ul className="landing-samples">
-          <li>
-            <span className="landing-dot landing-dot-blue" />
-            Weekdays · 07:30 · Morning run
-          </li>
-          <li>
-            <span className="landing-dot landing-dot-coral" />
-            Every 90 minutes · Stand up
-          </li>
-          <li>
-            <span className="landing-dot landing-dot-green" />
-            Sundays · 19:00 · Plan the week
-          </li>
+        <ul className="landing-presets">
+          {PRESETS.map((preset) => (
+            <li key={`${preset.folder}/${preset.name}`}>
+              <span className="landing-preset-folder">{preset.folder}</span>
+              <span className="landing-preset-name">{preset.name}</span>
+              <span className="landing-preset-detail">{preset.detail}</span>
+            </li>
+          ))}
         </ul>
       </section>
 
