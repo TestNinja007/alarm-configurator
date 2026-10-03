@@ -8,6 +8,7 @@ import { NotificationProvider } from './components/NotificationProvider';
 import { AdminPage } from './routes/AdminPage';
 import { AlarmsPage } from './routes/AlarmsPage';
 import { FoldersPage } from './routes/FoldersPage';
+import { LandingPage } from './routes/LandingPage';
 import { LoginPage } from './routes/LoginPage';
 import { SettingsPage } from './routes/SettingsPage';
 import { ForgotPasswordPage } from './routes/ForgotPasswordPage';
@@ -84,6 +85,17 @@ export function App() {
   }
 
   if (!session.data) {
+    // The front door. Everything else a signed-out visitor can reach is a
+    // form, so this is the only page here that explains what the product is.
+    if (location.pathname === '/') {
+      return (
+        <>
+          <DemoBanner />
+          <LandingPage />
+        </>
+      );
+    }
+
     if (location.pathname === '/register') {
       return (
         <>
