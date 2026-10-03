@@ -18,6 +18,20 @@
   --success: #067647;
   --radius: 8px;
   --gutter: 16px;
+
+  /*
+   * Illustration palette, kept apart from the UI tokens above. These only
+   * ever appear inside a drawing, which wants softer fills than a control
+   * does, and nothing outside Illustrations.tsx should reach for them.
+   */
+  --art-wash: #eaf0fd;
+  --art-blue: #2563eb;
+  --art-blue-soft: #c3d4fb;
+  --art-amber: #d97706;
+  --art-amber-soft: #fbe3c3;
+  --art-green: #0d9460;
+  --art-green-soft: #bfe6d4;
+  --art-figure: #475569;
 }
 
 * {
@@ -819,6 +833,191 @@ a:focus-visible {
   .table td {
     border: 0;
     padding: 4px 0;
+  }
+}
+
+
+/* Landing page ------------------------------------------------------------ */
+
+/*
+ * The signed-out front door. It does not reuse .page: that is capped at 960px
+ * for dense forms and tables, and a hero wants more room than a table does.
+ */
+.landing {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 var(--gutter) 64px;
+}
+
+.landing::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(52rem 34rem at 78% -6%, rgb(29 78 216 / 10%), transparent 62%),
+    radial-gradient(40rem 30rem at 6% 46%, rgb(217 119 6 / 6%), transparent 60%);
+  pointer-events: none;
+}
+
+.landing-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 0;
+}
+
+.landing-wordmark {
+  font-size: 1.4rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.landing-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 24px 0 48px;
+}
+
+.landing-headline {
+  margin: 0;
+  font-size: 2.1rem;
+  font-weight: 680;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.landing-lead {
+  margin: 18px 0 0;
+  max-width: 48ch;
+  color: var(--muted);
+  font-size: 1.05rem;
+}
+
+.landing-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.button-large {
+  padding: 12px 22px;
+  font-size: 1.02rem;
+  font-weight: 600;
+}
+
+.landing-cta-note {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.landing-art {
+  display: flex;
+  justify-content: center;
+}
+
+.art-hero {
+  width: 100%;
+  max-width: 400px;
+  height: auto;
+}
+
+.art-spot {
+  width: 108px;
+  height: 90px;
+}
+
+.landing-section {
+  padding-top: 24px;
+}
+
+.landing-section-title {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.landing-prose {
+  margin: 14px 0 32px;
+  max-width: 58ch;
+  color: var(--muted);
+  font-size: 1.02rem;
+}
+
+/*
+ * auto-fit rather than a fixed three, so the row reflows at any width instead
+ * of needing a breakpoint of its own.
+ */
+.landing-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(258px, 1fr));
+  gap: 20px;
+}
+
+.landing-card {
+  margin-bottom: 0;
+  padding: 22px;
+}
+
+.landing-card-title {
+  margin: 14px 0 8px;
+  font-size: 1.08rem;
+  font-weight: 650;
+}
+
+.landing-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.97rem;
+}
+
+.landing-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 56px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+
+.landing-footer-wordmark {
+  font-weight: 600;
+}
+
+.landing-footer-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.93rem;
+}
+
+@media (min-width: 860px) {
+  .landing-hero {
+    display: grid;
+    grid-template-columns: 1fr 400px;
+    align-items: center;
+    gap: 48px;
+    padding: 40px 0 72px;
+  }
+
+  .landing-headline {
+    font-size: 3.1rem;
+  }
+
+  .landing-lead {
+    font-size: 1.14rem;
+  }
+
+  .landing-section-title {
+    font-size: 2rem;
   }
 }
 
