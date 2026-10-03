@@ -21,71 +21,62 @@
  * recomputing two sets of endpoint coordinates by hand.
  */
 export function HeroArt() {
-  // 2 * pi * 98, the circumference the dash lengths below are slices of.
-  const ring = 615.75;
+  // 2 * pi * 104, the circumference the dash lengths below are slices of.
+  const ring = 653.45;
 
   return (
-    <svg className="art art-hero" viewBox="0 0 400 340" fill="none" aria-hidden="true">
-      <circle cx="200" cy="170" r="132" fill="var(--art-wash)" />
+    <svg className="art art-hero" viewBox="0 0 360 340" fill="none" aria-hidden="true">
+      <circle cx="180" cy="168" r="132" fill="var(--art-wash)" />
 
-      <g transform="rotate(-90 200 170)" strokeWidth="22" strokeLinecap="butt">
-        <circle cx="200" cy="170" r="98" stroke="var(--art-blue)" strokeDasharray={`170 ${ring}`} />
+      <g transform="rotate(-90 180 168)" strokeWidth="24">
+        <circle cx="180" cy="168" r="104" stroke="var(--art-ink)" strokeDasharray={`178 ${ring}`} />
         <circle
-          cx="200"
-          cy="170"
-          r="98"
-          stroke="var(--art-amber)"
-          strokeDasharray={`115 ${ring}`}
-          strokeDashoffset="-182"
+          cx="180"
+          cy="168"
+          r="104"
+          stroke="var(--art-coral)"
+          strokeDasharray={`120 ${ring}`}
+          strokeDashoffset="-190"
         />
         <circle
-          cx="200"
-          cy="170"
-          r="98"
+          cx="180"
+          cy="168"
+          r="104"
           stroke="var(--art-green)"
-          strokeDasharray={`140 ${ring}`}
-          strokeDashoffset="-309"
+          strokeDasharray={`146 ${ring}`}
+          strokeDashoffset="-322"
         />
+        {/* The part of the day still unspoken for. */}
         <circle
-          cx="200"
-          cy="170"
-          r="98"
-          stroke="var(--art-blue-soft)"
-          strokeDasharray={`143 ${ring}`}
-          strokeDashoffset="-461"
+          cx="180"
+          cy="168"
+          r="104"
+          stroke="var(--art-fill)"
+          strokeDasharray={`167 ${ring}`}
+          strokeDashoffset="-480"
         />
       </g>
 
       {/* Seated, settled: the mat gives the figure something to sit on so it
           does not read as floating in the middle of the ring. */}
-      <ellipse cx="200" cy="214" rx="54" ry="11" fill="var(--art-blue-soft)" />
-      <circle cx="200" cy="146" r="15" fill="var(--art-figure)" />
-      <path d="M186 168q14-8 28 0l5 28q-19 6-38 0z" fill="var(--art-figure)" />
+      <ellipse cx="180" cy="216" rx="56" ry="12" fill="var(--art-mat)" />
+      <circle cx="180" cy="144" r="17" fill="var(--art-figure)" />
+      <path d="M164 168q16-9 32 0l6 30q-22 7-44 0z" fill="var(--art-figure)" />
       <path
-        d="M168 198q32-10 64 0 6 16-32 18t-32-18z"
+        d="M146 200q34-11 68 0 7 17-34 19t-34-19z"
         fill="var(--art-figure)"
         opacity="0.78"
       />
       <path
-        d="M187 172q-13 16-7 30M213 172q13 16 7 30"
+        d="M166 172q-14 17-8 32M194 172q14 17 8 32"
         stroke="var(--art-figure)"
-        strokeWidth="7"
+        strokeWidth="8"
         strokeLinecap="round"
       />
 
-      {/* A small bell off to one side, so the mark on the page and the drawing
-          are recognisably the same object. */}
-      <g transform="translate(296 54) scale(0.9)" stroke="var(--art-blue)" strokeWidth="5">
-        <path d="M10 26V17a9 9 0 0 1 18 0v9l3 4H7z" strokeLinejoin="round" />
-        <path d="M14 32a5 5 0 0 0 10 0" strokeLinecap="round" />
-        <path d="M2 14a13 13 0 0 1 3-8" strokeLinecap="round" opacity="0.45" />
-      </g>
-
-      <g fill="var(--art-amber)">
-        <circle cx="74" cy="92" r="5" />
-        <circle cx="330" cy="236" r="7" />
-        <circle cx="96" cy="262" r="4" opacity="0.6" />
-      </g>
+      <circle cx="54" cy="86" r="7" fill="var(--art-coral)" />
+      <circle cx="312" cy="236" r="9" fill="var(--art-green)" />
+      <circle cx="76" cy="258" r="5" fill="var(--art-coral)" opacity="0.6" />
     </svg>
   );
 }
@@ -94,28 +85,23 @@ export function HeroArt() {
 export function SwitchingArt() {
   return (
     <svg className="art art-spot" viewBox="0 0 120 100" fill="none" aria-hidden="true">
-      <path
-        d="M34 34q26-22 52 0"
-        stroke="var(--art-blue)"
-        strokeWidth="3"
-        strokeLinecap="round"
-      />
+      <path d="M34 34q26-22 52 0" stroke="var(--art-ink)" strokeWidth="3.4" strokeLinecap="round" />
       <path
         d="M41 31 34 34l3 7M79 31l7 3-3 7"
-        stroke="var(--art-blue)"
-        strokeWidth="3"
+        stroke="var(--art-ink)"
+        strokeWidth="3.4"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
 
-      <rect x="14" y="42" width="38" height="38" rx="11" fill="var(--art-amber-soft)" />
-      <path d="M25 61h16" stroke="var(--art-amber)" strokeWidth="4" strokeLinecap="round" />
-      <rect x="20" y="55" width="6" height="12" rx="2" fill="var(--art-amber)" />
-      <rect x="40" y="55" width="6" height="12" rx="2" fill="var(--art-amber)" />
+      <rect x="14" y="42" width="38" height="38" rx="12" fill="var(--art-fill)" />
+      <path d="M25 61h16" stroke="var(--art-coral)" strokeWidth="4" strokeLinecap="round" />
+      <rect x="20" y="55" width="6" height="12" rx="2" fill="var(--art-coral)" />
+      <rect x="40" y="55" width="6" height="12" rx="2" fill="var(--art-coral)" />
 
-      <rect x="68" y="42" width="38" height="38" rx="11" fill="var(--art-blue-soft)" />
-      <rect x="76" y="52" width="22" height="15" rx="3" fill="var(--art-blue)" />
-      <rect x="72" y="69" width="30" height="4" rx="2" fill="var(--art-blue)" />
+      <rect x="68" y="42" width="38" height="38" rx="12" fill="var(--art-fill)" />
+      <rect x="76" y="52" width="22" height="15" rx="3" fill="var(--art-ink)" />
+      <rect x="72" y="69" width="30" height="4" rx="2" fill="var(--art-ink)" />
     </svg>
   );
 }
@@ -126,19 +112,19 @@ export function SpeechArt() {
     <svg className="art art-spot" viewBox="0 0 120 100" fill="none" aria-hidden="true">
       <path
         d="M20 26h58a10 10 0 0 1 10 10v24a10 10 0 0 1-10 10H46l-16 13V70h-10a10 10 0 0 1-10-10V36a10 10 0 0 1 10-10z"
-        fill="var(--art-blue-soft)"
+        fill="var(--art-fill)"
       />
-      {/* Three bars of unequal length: the same message is never repeated
-          twice, which is the point of the card beside this. */}
+      {/* Three bars of unequal length: no two repeats say the same thing,
+          which is the point of the card beside this. */}
       <path
         d="M28 40h40M28 50h28M28 60h34"
-        stroke="var(--art-blue)"
+        stroke="var(--art-coral)"
         strokeWidth="5"
         strokeLinecap="round"
       />
       <path
         d="M98 34a16 16 0 0 1 0 28M106 26a26 26 0 0 1 0 44"
-        stroke="var(--art-amber)"
+        stroke="var(--art-coral-deep)"
         strokeWidth="4"
         strokeLinecap="round"
       />
@@ -150,38 +136,33 @@ export function SpeechArt() {
 export function EverywhereArt() {
   return (
     <svg className="art art-spot" viewBox="0 0 120 100" fill="none" aria-hidden="true">
-      <rect x="14" y="12" width="40" height="34" rx="10" fill="var(--art-blue-soft)" />
+      <rect x="14" y="12" width="40" height="34" rx="11" fill="var(--art-fill)" />
       <path
         d="M26 32 36 23l10 9"
-        stroke="var(--art-blue)"
-        strokeWidth="3.5"
+        stroke="var(--art-green)"
+        strokeWidth="3.4"
         strokeLinejoin="round"
         strokeLinecap="round"
       />
-      <path d="M29 32v8h14v-8" stroke="var(--art-blue)" strokeWidth="3.5" strokeLinejoin="round" />
+      <path d="M29 32v8h14v-8" stroke="var(--art-green)" strokeWidth="3.4" strokeLinejoin="round" />
 
-      <rect x="66" y="12" width="40" height="34" rx="10" fill="var(--art-amber-soft)" />
-      <rect x="76" y="21" width="20" height="16" rx="3" stroke="var(--art-amber)" strokeWidth="3.5" />
-      <path d="M86 21v16" stroke="var(--art-amber)" strokeWidth="3.5" />
+      <rect x="66" y="12" width="40" height="34" rx="11" fill="var(--art-fill)" />
+      <rect x="76" y="21" width="20" height="16" rx="3" stroke="var(--art-green)" strokeWidth="3.4" />
+      <path d="M86 21v16" stroke="var(--art-green)" strokeWidth="3.4" />
 
-      <rect x="14" y="54" width="40" height="34" rx="10" fill="var(--art-green-soft)" />
+      <rect x="14" y="54" width="40" height="34" rx="11" fill="var(--art-fill)" />
       <path
         d="M25 67q11 16 22 0"
         stroke="var(--art-green)"
-        strokeWidth="3.5"
+        strokeWidth="3.4"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      <path d="M23 67h26" stroke="var(--art-green)" strokeWidth="3.5" strokeLinecap="round" />
+      <path d="M23 67h26" stroke="var(--art-green)" strokeWidth="3.4" strokeLinecap="round" />
 
-      <rect x="66" y="54" width="40" height="34" rx="10" fill="var(--art-blue-soft)" />
-      <rect x="76" y="63" width="15" height="17" rx="4" stroke="var(--art-blue)" strokeWidth="3.5" />
-      <path
-        d="M92 68q6 3.5 0 7"
-        stroke="var(--art-blue)"
-        strokeWidth="3.5"
-        strokeLinecap="round"
-      />
+      <rect x="66" y="54" width="40" height="34" rx="11" fill="var(--art-fill)" />
+      <rect x="76" y="63" width="15" height="17" rx="4" stroke="var(--art-green)" strokeWidth="3.4" />
+      <path d="M92 68q6 3.5 0 7" stroke="var(--art-green)" strokeWidth="3.4" strokeLinecap="round" />
     </svg>
   );
 }
