@@ -45,38 +45,33 @@ const SCALE = [
 /**
  * Folders, shown as what they are actually for: three presets each, because
  * one apiece demonstrated nothing a reader could not already assume.
+ *
+ * These are the shape the product is really used in — things you know you will
+ * do today without knowing when, started the moment the gap appears.
  */
 const FOLDERS = [
+  {
+    name: 'Work',
+    presets: [
+      { name: 'Stretch', detail: 'Stand up every 50 minutes, for two' },
+      { name: 'Lunch walk', detail: '20 minutes, straight after eating' },
+      { name: 'Reset', detail: 'Box breathing — 4 in, 4 hold, 4 out, 4 hold' },
+    ],
+  },
+  {
+    name: 'Unwind',
+    presets: [
+      { name: '4-7-8 breath', detail: '4 in, 7 hold, 8 out, eight rounds' },
+      { name: 'Body scan', detail: '10 minutes, a cue every two' },
+      { name: 'Progressive relaxation', detail: '20s tense, 20s release, head to feet' },
+    ],
+  },
   {
     name: 'Workout',
     presets: [
       { name: 'Legs', detail: '30s on, 10s off, eight rounds' },
       { name: 'Quick HIIT', detail: '20s on, 10s off, eight rounds' },
       { name: 'Cool down', detail: '60s a stretch, five of them' },
-    ],
-  },
-  {
-    name: 'Meditation',
-    presets: [
-      { name: 'Short', detail: '10 minutes, a cue every two' },
-      { name: 'Long', detail: '30 minutes, a cue every five' },
-      { name: 'Box breathing', detail: '4 in, 7 hold, 8 out' },
-    ],
-  },
-  {
-    name: 'Work',
-    presets: [
-      { name: 'Deep', detail: '50 on, 10 off, four rounds' },
-      { name: 'Admin', detail: '25 on, 5 off, twice' },
-      { name: 'Stand up', detail: 'Every 90 minutes until six' },
-    ],
-  },
-  {
-    name: 'Home',
-    presets: [
-      { name: 'Cooking', detail: 'Stir every 90 seconds' },
-      { name: 'Wind down', detail: '20 minutes, a cue every five' },
-      { name: 'Sunday', detail: 'Plan the week, 19:00' },
     ],
   },
 ];
@@ -125,12 +120,14 @@ export function LandingPage() {
 
       <section className="landing-hero panel panel-blue">
         <div className="landing-copy">
-          <p className="landing-eyebrow">Recurring alarms that speak</p>
-          <h1 className="landing-headline">Your day already has a shape.</h1>
+          <p className="landing-eyebrow">Plan your day out loud</p>
+          <h1 className="landing-headline">
+            Whatever vague idea pops into your head.
+          </h1>
 
           <p className="landing-lead" data-testid="landing-lead">
-            Nudge helps you hold it. Set the things you mean to do, and it tells
-            you — out loud — when it is time to move to the next one.
+            Nudge helps you shape it, and hold on to it. Set the structure in
+            seconds — it tells you out loud when to move.
           </p>
 
           <div className="landing-cta">
@@ -279,8 +276,13 @@ export function LandingPage() {
           the same thing again from scratch.
         </p>
         <p>
-          Folders make an alarm a preset. When the moment arrives, open the
-          folder. It is already there.
+          Folders make an alarm a preset. You know you will stretch, walk and
+          breathe at some point today — you just do not know when. When the gap
+          appears, open the folder and start the one that fits.
+        </p>
+
+        <p className="landing-library-caption">
+          Three folders, the way they typically end up:
         </p>
 
         <div className="landing-folders">

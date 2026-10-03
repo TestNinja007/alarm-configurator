@@ -1130,11 +1130,16 @@ a:focus-visible {
   margin-top: 14px;
 }
 
+.landing-library-caption {
+  margin-top: 26px;
+  font-weight: 600;
+}
+
 .landing-folders {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(234px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(258px, 1fr));
   gap: 18px;
-  margin-top: 32px;
+  margin-top: 18px;
 }
 
 .landing-folder {
