@@ -66,9 +66,13 @@ export async function seed(profile: SeedProfile = 'demo'): Promise<void> {
     if (profile === 'empty') return;
 
     const folderIdByKey = new Map<string, string>();
+    // An alarm carries its owner now, so the seed has to know whose folder
+    // each one was.
+    const folderUserIdByKey = new Map<string, string | undefined>();
 
     for (const folder of SEED_FOLDERS) {
       folderIdByKey.set(folder.externalKey, folder.id);
+      folderUserIdByKey.set(folder.externalKey, userIdByKey.get(folder.userKey));
       await client.query(
         `INSERT INTO folders (id, external_key, user_id, name, created_at, updated_at)
          VALUES ($1, $2, $3, $4, $5, $5)`,
@@ -78,13 +82,14 @@ export async function seed(profile: SeedProfile = 'demo'): Promise<void> {
 
     for (const alarm of SEED_ALARMS) {
       await client.query(
-        `INSERT INTO alarms (id, external_key, folder_id, name, note, enabled, time_of_day,
+        `INSERT INTO alarms (id, external_key, user_id, folder_id, name, note, enabled, time_of_day,
                              timezone, start_date, end_date, end_after_occurrences, rule,
                              created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $14)`,
         [
           alarm.id,
           alarm.externalKey,
+          folderUserIdByKey.get(alarm.folderKey),
           folderIdByKey.get(alarm.folderKey),
           alarm.name,
           alarm.note,

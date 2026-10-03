@@ -32,21 +32,28 @@ const ALARM_COLUMNS = `
   a.start_date, a.end_date, a.end_time, a.end_after_occurrences,
   a.speech_text, a.speech_final_text, a.speech_voice,
   a.end_time_of_day, a.repeat_every, a.repeat_unit,
-  a.rule, a.created_at, a.updated_at
+  a.rule, a.self_destruct, a.created_at, a.updated_at
 `;
 
-/** Loads an alarm only if it sits in a folder the user owns. */
+/** Loads an alarm only if the caller owns it. */
 async function loadAlarm(userId: string, alarmId: string): Promise<AlarmRow | undefined> {
   return queryOne<AlarmRow>(
     `SELECT ${ALARM_COLUMNS}
        FROM alarms a
-       JOIN folders f ON f.id = a.folder_id
-      WHERE a.id = $1 AND f.user_id = $2`,
+      WHERE a.id = $1 AND a.user_id = $2`,
     [alarmId, userId],
   );
 }
 
-async function assertOwnsFolder(userId: string, folderId: string): Promise<void> {
+/**
+ * A null folder is the unfiled bucket: everybody has one and nobody owns it,
+ * so there is nothing to check.
+ */
+async function assertOwnsFolder(
+  userId: string,
+  folderId: string | null | undefined,
+): Promise<void> {
+  if (!folderId) return;
   const row = await queryOne<{ id: string }>(
     'SELECT id FROM folders WHERE id = $1 AND user_id = $2',
     [folderId, userId],
@@ -57,11 +64,12 @@ async function assertOwnsFolder(userId: string, folderId: string): Promise<void>
 
 /** R-08: refuse a write that would put two enabled alarms on the same instant. */
 async function assertNoCollision(
-  folderId: string,
-  candidate: Parameters<typeof findCollision>[1],
+  userId: string,
+  folderId: string | null,
+  candidate: Parameters<typeof findCollision>[2],
   excludeAlarmId?: string,
 ): Promise<void> {
-  const collision = await findCollision(folderId, candidate, excludeAlarmId);
+  const collision = await findCollision(userId, folderId, candidate, excludeAlarmId);
   if (!collision) return;
 
   throw conflict(
@@ -76,13 +84,54 @@ async function assertNoCollision(
   );
 }
 
-function duplicateNameConflict() {
-  return conflict('An alarm with that name already exists in this folder.', {
+/**
+ * Removes the caller's self-destructing alarms that have nothing left to fire.
+ *
+ * Swept when the list is read rather than on a timer. The service runs no
+ * scheduler, and firing happens in the browser, so the server never learns
+ * that an alarm went off - only that it has no occurrence left, which is the
+ * same thing one moment later and is computable from the rule alone.
+ *
+ * Doing it on read makes the behaviour observable: create one in the past,
+ * list, and it is gone. A background timer would make the same test wait.
+ */
+async function sweepSelfDestructed(userId: string): Promise<void> {
+  const candidates = await query<AlarmRow>(
+    `SELECT ${ALARM_COLUMNS} FROM alarms a WHERE a.user_id = $1 AND a.self_destruct = true`,
+    [userId],
+  );
+  if (candidates.rows.length === 0) return;
+
+  const now = clock.now();
+  const spent = candidates.rows
+    .filter((row) => !nextOccurrence(specFromRow(row), now))
+    .map((row) => row.id);
+
+  if (spent.length === 0) return;
+  await query('DELETE FROM alarms WHERE id = ANY($1::uuid[])', [spent]);
+}
+
+/**
+ * R-09 is two indexes now - one per folder, one for the unfiled bucket -
+ * because Postgres counts NULLs as distinct and the folder index alone would
+ * have let unfiled alarms share a name. Either violation is the same mistake
+ * to the person who made it.
+ */
+function isDuplicateName(error: unknown): boolean {
+  return (
+    isUniqueViolation(error, 'alarms_folder_name_key') ||
+    isUniqueViolation(error, 'alarms_unfiled_name_key')
+  );
+}
+
+function duplicateNameConflict(folderId: string | null) {
+  const where = folderId ? 'this folder' : 'your unfiled alarms';
+  return conflict(`An alarm with that name already exists in ${where}.`, {
     fields: [
       {
         field: 'name',
         code: 'duplicate_name',
-        message: 'Alarm names must be unique within a folder.',
+        message: `Alarm names must be unique within ${folderId ? 'a folder' : 'the unfiled list'}.`,
       },
     ],
   });
@@ -105,15 +154,19 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
       // A-01: a fixed, documented pause so the list's skeleton state is real.
       if (config.listDelayMs > 0) await delay(config.listDelayMs);
 
+      await sweepSelfDestructed(request.user!.id);
+
       const page = request.query.page ?? 1;
       const pageSize = request.query.pageSize ?? 25;
 
-      const conditions: string[] = ['f.user_id = $1'];
+      const conditions: string[] = ['a.user_id = $1'];
       const params: (string | number | boolean)[] = [request.user!.id];
 
       if (request.query.folderId) {
         params.push(request.query.folderId);
         conditions.push(`a.folder_id = $${params.length}`);
+      } else if (request.query.unfiled) {
+        conditions.push('a.folder_id IS NULL');
       }
       if (request.query.enabled !== undefined) {
         params.push(request.query.enabled);
@@ -129,7 +182,7 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
 
       const totalRow = await queryOne<{ total: number }>(
         `SELECT count(*)::bigint AS total
-           FROM alarms a JOIN folders f ON f.id = a.folder_id
+           FROM alarms a
           WHERE ${where}`,
         params,
       );
@@ -143,7 +196,7 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
         // last. The next occurrence is computed for disabled alarms too.
         const all = await query<AlarmRow>(
           `SELECT ${ALARM_COLUMNS}
-             FROM alarms a JOIN folders f ON f.id = a.folder_id
+             FROM alarms a
             WHERE ${where}`,
           params,
         );
@@ -178,7 +231,7 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
       params.push(pageSize, (page - 1) * pageSize);
       const rows = await query<AlarmRow>(
         `SELECT ${ALARM_COLUMNS}
-           FROM alarms a JOIN folders f ON f.id = a.folder_id
+           FROM alarms a
           WHERE ${where}
           ORDER BY ${orderBy}
           LIMIT $${params.length - 1} OFFSET $${params.length}`,
@@ -205,17 +258,18 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
       },
     },
     async (request, reply) => {
-      await assertOwnsFolder(request.user!.id, request.body.folderId);
+      const folderId = request.body.folderId ?? null;
+      await assertOwnsFolder(request.user!.id, folderId);
       const { timezone } = validateSchedule(request.body);
 
       const tier = await tierOf(request.user!.id);
       assertScheduleAllowed(tier, request.body);
-      await assertCanAddAlarm(request.body.folderId, tier);
+      await assertCanAddAlarm(request.user!.id, folderId, tier);
 
       const enabled = request.body.enabled ?? true;
       // A disabled alarm is invisible to R-08, so the check is skipped entirely.
       if (enabled) {
-        await assertNoCollision(request.body.folderId, {
+        await assertNoCollision(request.user!.id, folderId, {
           timeOfDay: request.body.timeOfDay,
           timezone,
           startDate: request.body.startDate,
@@ -234,15 +288,16 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
 
       try {
         await query(
-          `INSERT INTO alarms (id, folder_id, name, note, enabled, time_of_day, timezone,
+          `INSERT INTO alarms (id, user_id, folder_id, name, note, enabled, time_of_day, timezone,
                                start_date, end_date, end_time, end_after_occurrences,
                                speech_text, speech_final_text, speech_voice,
                                end_time_of_day, repeat_every, repeat_unit, rule,
-                               created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $19)`,
+                               self_destruct, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $21)`,
           [
             id,
-            request.body.folderId,
+            request.user!.id,
+            folderId,
             request.body.name.trim(),
             request.body.note?.trim() || null,
             enabled,
@@ -259,11 +314,12 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
             request.body.repeatEvery ?? null,
             request.body.repeatUnit ?? null,
             JSON.stringify(normaliseRule(request.body.rule)),
+            request.body.selfDestruct ?? false,
             now,
           ],
         );
       } catch (error) {
-        if (isUniqueViolation(error, 'alarms_folder_name_key')) throw duplicateNameConflict();
+        if (isDuplicateName(error)) throw duplicateNameConflict(folderId);
         throw error;
       }
 
@@ -304,20 +360,22 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
       const existing = await loadAlarm(request.user!.id, request.params.id);
       if (!existing) throw notFound('Alarm');
 
-      await assertOwnsFolder(request.user!.id, request.body.folderId);
+      const folderId = request.body.folderId ?? null;
+      await assertOwnsFolder(request.user!.id, folderId);
       const { timezone } = validateSchedule(request.body);
 
       const tier = await tierOf(request.user!.id);
       assertScheduleAllowed(tier, request.body);
       // Moving an alarm into another folder must respect that folder's count,
       // so the alarm being moved is excluded from its own check.
-      await assertCanAddAlarm(request.body.folderId, tier, request.params.id);
+      await assertCanAddAlarm(request.user!.id, folderId, tier, request.params.id);
 
       // An update keeps the alarm's enabled state; only an enabled alarm can
       // collide, and it must not be compared against its own previous rows.
       if (existing.enabled) {
         await assertNoCollision(
-          request.body.folderId,
+          request.user!.id,
+          folderId,
           {
             timeOfDay: request.body.timeOfDay,
             timezone,
@@ -342,10 +400,10 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
                   end_after_occurrences = $9, speech_text = $10,
                   speech_final_text = $11, speech_voice = $12,
                   end_time_of_day = $13, repeat_every = $14, repeat_unit = $15,
-                  rule = $16, updated_at = $17
-            WHERE id = $18`,
+                  rule = $16, self_destruct = $17, updated_at = $18
+            WHERE id = $19`,
           [
-            request.body.folderId,
+            folderId,
             request.body.name.trim(),
             request.body.note?.trim() || null,
             request.body.timeOfDay,
@@ -361,12 +419,13 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
             request.body.repeatEvery ?? null,
             request.body.repeatUnit ?? null,
             JSON.stringify(normaliseRule(request.body.rule)),
+            request.body.selfDestruct ?? existing.self_destruct,
             clock.now(),
             request.params.id,
           ],
         );
       } catch (error) {
-        if (isUniqueViolation(error, 'alarms_folder_name_key')) throw duplicateNameConflict();
+        if (isDuplicateName(error)) throw duplicateNameConflict(folderId);
         throw error;
       }
 
@@ -408,8 +467,8 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
       // request a 404, exactly as a single-alarm request would.
       const owned = await query<AlarmRow>(
         `SELECT ${ALARM_COLUMNS}
-           FROM alarms a JOIN folders f ON f.id = a.folder_id
-          WHERE a.id = ANY($1::uuid[]) AND f.user_id = $2`,
+           FROM alarms a
+          WHERE a.id = ANY($1::uuid[]) AND a.user_id = $2`,
         [request.body.ids, request.user!.id],
       );
 
@@ -425,8 +484,8 @@ export async function alarmRoutes(app: FastifyInstance): Promise<void> {
 
       const refreshed = await query<AlarmRow>(
         `SELECT ${ALARM_COLUMNS}
-           FROM alarms a JOIN folders f ON f.id = a.folder_id
-          WHERE a.id = ANY($1::uuid[]) AND f.user_id = $2
+           FROM alarms a
+          WHERE a.id = ANY($1::uuid[]) AND a.user_id = $2
           ORDER BY lower(a.name) ASC`,
         [request.body.ids, request.user!.id],
       );

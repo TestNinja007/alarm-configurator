@@ -6,6 +6,7 @@ import {
   describeRule,
   type Alarm,
   type AlarmDraft,
+  type Folder,
   type Rule,
   type Weekday,
 } from '../api/types';
@@ -32,9 +33,19 @@ import { useToast } from '../components/Toaster';
  */
 
 const STEPS = ['Basics', 'Schedule', 'Repetition', 'Review'] as const;
+
+/**
+ * The URL segment, and the form value, that stand for "no folder at all".
+ * The form keeps the empty string because that is what an unselected
+ * <select> gives you; the URL needs a word.
+ */
+const UNFILED = 'unfiled';
+const folderParam = (value: string | null | undefined) => value || UNFILED;
+const folderValue = (value: string | undefined) => (value === UNFILED ? '' : (value ?? ''));
 const WEEKDAYS: Weekday[] = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
 
 interface WizardForm {
+  /** Empty for unfiled. */
   folderId: string;
   name: string;
   note: string;
@@ -53,6 +64,7 @@ interface WizardForm {
   repeatEvery: string;
   repeatUnit: 'seconds' | 'minutes' | 'hours';
   rule: Rule;
+  selfDestruct: boolean;
 }
 
 /** Minutes since midnight, for the spoken-sequence preview. */
@@ -81,12 +93,13 @@ function emptyForm(folderId: string): WizardForm {
     repeatEvery: '30',
     repeatUnit: 'minutes',
     rule: { type: 'daily' },
+    selfDestruct: false,
   };
 }
 
 function formFromAlarm(alarm: Alarm): WizardForm {
   return {
-    folderId: alarm.folderId,
+    folderId: alarm.folderId ?? '',
     name: alarm.name,
     note: alarm.note ?? '',
     speechText: alarm.speechText ?? '',
@@ -104,13 +117,14 @@ function formFromAlarm(alarm: Alarm): WizardForm {
     repeatEvery: alarm.repeatEvery?.toString() ?? '30',
     repeatUnit: alarm.repeatUnit ?? 'minutes',
     rule: alarm.rule,
+    selfDestruct: alarm.selfDestruct,
   };
 }
 
 /** The request body, with the end mode collapsed into the two exclusive fields. */
 function toPayload(form: WizardForm) {
   return {
-    folderId: form.folderId,
+    folderId: form.folderId || null,
     name: form.name.trim(),
     note: form.note.trim() ? form.note.trim() : null,
     speechText: form.speechText.trim() ? form.speechText.trim() : null,
@@ -131,6 +145,7 @@ function toPayload(form: WizardForm) {
     repeatEvery: form.repeatWithinDay ? Number.parseInt(form.repeatEvery, 10) || null : null,
     repeatUnit: form.repeatWithinDay ? form.repeatUnit : null,
     rule: form.rule,
+    selfDestruct: form.selfDestruct,
   };
 }
 
@@ -142,7 +157,14 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
 
   const alarmId = params.alarmId;
   const [step, setStep] = useState(1);
-  const [form, setForm] = useState<WizardForm>(() => emptyForm(params.folderId ?? ''));
+  const [form, setForm] = useState<WizardForm>(() => emptyForm(folderValue(params.folderId)));
+
+  // Offered so an alarm made in the moment can be filed afterwards, which is
+  // the whole reason a folder is optional.
+  const folders = useQuery({
+    queryKey: ['folders'],
+    queryFn: () => api.get<{ items: Folder[] }>('/folders'),
+  });
   const [hydrated, setHydrated] = useState(false);
   /** What the alarm looked like when it loaded, so an edit knows if it changed. */
   const [original, setOriginal] = useState<WizardForm | undefined>();
@@ -184,7 +206,10 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
     } else {
       const saved = draft.data?.draft;
       if (saved && typeof saved.payload === 'object') {
-        setForm({ ...emptyForm(params.folderId ?? ''), ...(saved.payload as Partial<WizardForm>) });
+        setForm({
+          ...emptyForm(folderValue(params.folderId)),
+          ...(saved.payload as Partial<WizardForm>),
+        });
         setStep(saved.step);
       }
     }
@@ -211,7 +236,7 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
       await queryClient.invalidateQueries({ queryKey: ['alarms'] });
       await queryClient.invalidateQueries({ queryKey: ['conflicts', alarm.folderId] });
       toast.push('success', `"${alarm.name}" ${mode === 'create' ? 'created' : 'saved'}.`);
-      void navigate(`/folders/${alarm.folderId}`);
+      void navigate(`/folders/${folderParam(alarm.folderId)}`);
     },
     onError: (error) => {
       if (error instanceof ApiError && error.status === 409) {
@@ -263,7 +288,7 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
     return problems;
   }
 
-  const folderPath = `/folders/${form.folderId}`;
+  const folderPath = `/folders/${folderParam(form.folderId)}`;
 
   // Only an edit can lose anything by leaving: a create keeps its draft on the
   // server, so backing out of one is free.
@@ -322,6 +347,27 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
         {step === 1 ? (
           <>
             <div className="field">
+              <label htmlFor="alarm-folder">Folder</label>
+              <select
+                id="alarm-folder"
+                value={form.folderId}
+                onChange={(event) => update({ folderId: event.target.value })}
+                data-testid="alarm-folder-select"
+              >
+                <option value="">No folder yet — sort it later</option>
+                {(folders.data?.items ?? []).map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+              <p className="field-hint">
+                An alarm with no folder still works. It waits in Unfiled until you
+                decide where it belongs.
+              </p>
+            </div>
+
+            <div className="field">
               <label htmlFor="alarm-name">Name</label>
               <input
                 id="alarm-name"
@@ -337,6 +383,22 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
                   {fieldError('name')}
                 </p>
               ) : null}
+            </div>
+
+            <div className="field">
+              <label className="radio-row">
+                <input
+                  type="checkbox"
+                  checked={form.selfDestruct}
+                  onChange={(event) => update({ selfDestruct: event.target.checked })}
+                  data-testid="alarm-self-destruct-checkbox"
+                />
+                Delete this alarm once it is finished
+              </label>
+              <p className="field-hint">
+                For something you need once. It disappears after its last
+                occurrence rather than sitting in the list waiting to be tidied up.
+              </p>
             </div>
 
             <div className="field">

@@ -76,7 +76,7 @@ const USER_COLUMNS = `
   u.id, u.email, u.name, u.role, u.tier, u.email_verified_at, u.suspended_at,
   u.external_key, u.created_at,
   count(DISTINCT f.id)::bigint AS folders,
-  count(a.id)::bigint          AS alarms
+  count(DISTINCT a.id)::bigint AS alarms
 `;
 
 /** Refuses anyone who is not an administrator, by pretending not to exist. */
@@ -108,7 +108,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
         `SELECT ${USER_COLUMNS}
            FROM users u
            LEFT JOIN folders f ON f.user_id = u.id
-           LEFT JOIN alarms  a ON a.folder_id = f.id
+           LEFT JOIN alarms  a ON a.user_id = u.id
           GROUP BY u.id
           ORDER BY u.created_at ASC`,
       );
@@ -182,7 +182,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
         `SELECT ${USER_COLUMNS}
            FROM users u
            LEFT JOIN folders f ON f.user_id = u.id
-           LEFT JOIN alarms  a ON a.folder_id = f.id
+           LEFT JOIN alarms  a ON a.user_id = u.id
           WHERE u.id = $1
           GROUP BY u.id`,
         [request.params.id],

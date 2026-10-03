@@ -231,10 +231,10 @@ export async function meRoutes(app: FastifyInstance): Promise<void> {
         `SELECT u.password_hash,
                 u.external_key,
                 count(DISTINCT f.id) AS folder_count,
-                count(a.id)          AS alarm_count
+                count(DISTINCT a.id) AS alarm_count
            FROM users u
            LEFT JOIN folders f ON f.user_id = u.id
-           LEFT JOIN alarms  a ON a.folder_id = f.id
+           LEFT JOIN alarms  a ON a.user_id = u.id
           WHERE u.id = $1
           GROUP BY u.id`,
         [userId],

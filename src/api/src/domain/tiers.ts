@@ -85,16 +85,23 @@ export async function assertCanAddFolder(userId: string, tier: Tier): Promise<vo
   }
 }
 
+/**
+ * The unfiled bucket counts as one more folder, and carries the same cap. An
+ * uncapped staging area would let a basic account hold any number of alarms
+ * by never filing them.
+ */
 export async function assertCanAddAlarm(
-  folderId: string,
+  userId: string,
+  folderId: string | null,
   tier: Tier,
   excludeAlarmId?: string,
 ): Promise<void> {
   const limit = limitsFor(tier).maxAlarmsPerFolder;
   if (limit === null) return;
 
-  const params: string[] = [folderId];
-  let sql = 'SELECT count(*)::bigint AS count FROM alarms WHERE folder_id = $1';
+  const params: string[] = [folderId ?? userId];
+  const scope = folderId ? 'folder_id = $1' : 'user_id = $1 AND folder_id IS NULL';
+  let sql = `SELECT count(*)::bigint AS count FROM alarms WHERE ${scope}`;
   if (excludeAlarmId) {
     params.push(excludeAlarmId);
     sql += ' AND id <> $2';
@@ -104,7 +111,8 @@ export async function assertCanAddAlarm(
 
   if ((row?.count ?? 0) >= limit) {
     throw conflict(
-      `The ${tier} tier allows ${limit} alarm${limit === 1 ? '' : 's'} per folder.`,
+      `The ${tier} tier allows ${limit} alarm${limit === 1 ? '' : 's'} per folder` +
+        `${folderId ? '' : ', and unfiled alarms count as a folder of their own'}.`,
       {
         fields: [
           { field: 'name', code: 'tier_limit', message: `Upgrade to create more than ${limit}.` },

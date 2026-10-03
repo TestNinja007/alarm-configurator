@@ -15,10 +15,28 @@ export const DateOnlySchema = Type.String({
   examples: ['2026-06-15'],
 });
 
+/**
+ * A nullable string in a request body, written as a nullable *type* rather
+ * than a union of string and null.
+ *
+ * Type.Union([Type.String(), Type.Null()]) compiles to anyOf, and Ajv - with
+ * the type coercion Fastify enables by default - satisfies the string branch
+ * by turning null into the empty string. Where the string branch has no
+ * pattern to fail, the coercion sticks: speechText arrived as "" rather than
+ * absent, and the rule that refuses a blank message refused every alarm that
+ * simply had none. Dated fields escaped only because "" fails their pattern
+ * and Ajv then falls through to the null branch.
+ *
+ * A nullable type has no branch to coerce into, so null stays null.
+ */
+const NullableString = (options: { maxLength: number }) =>
+  Type.Unsafe<string | null>({ type: ['string', 'null'], ...options });
+
 export const AlarmSchema = Type.Object(
   {
     id: UuidSchema,
-    folderId: UuidSchema,
+    /** Null while an alarm is unfiled: made in the moment, sorted later. */
+    folderId: Type.Union([UuidSchema, Type.Null()]),
     name: Type.String(),
     note: Type.Union([Type.String(), Type.Null()]),
     enabled: Type.Boolean(),
@@ -40,6 +58,7 @@ export const AlarmSchema = Type.Object(
       Type.Null(),
     ]),
     rule: RuleSchema,
+    selfDestruct: Type.Boolean(),
     createdAt: TimestampSchema,
     updatedAt: TimestampSchema,
   }
@@ -62,9 +81,9 @@ const scheduleProperties = {
    * synthesis. The voice is a preference rather than a named voice, because
    * the voices installed differ from one machine to the next.
    */
-  speechText: Type.Optional(Type.Union([Type.String({ maxLength: 200 }), Type.Null()])),
+  speechText: Type.Optional(NullableString({ maxLength: 200 })),
   /** Replaces speechText on the last occurrence of each day, when set. */
-  speechFinalText: Type.Optional(Type.Union([Type.String({ maxLength: 200 }), Type.Null()])),
+  speechFinalText: Type.Optional(NullableString({ maxLength: 200 })),
   speechVoice: Type.Optional(
     Type.Union([Type.Literal('male'), Type.Literal('female'), Type.Null()]),
   ),
@@ -85,13 +104,19 @@ const scheduleProperties = {
     ]),
   ),
   rule: RuleSchema,
+  /**
+   * Deletes itself once it has no occurrence left to fire. For an alarm
+   * made for one specific moment, that is just after the moment.
+   */
+  selfDestruct: Type.Optional(Type.Boolean()),
 };
 
 export const CreateAlarmBodySchema = Type.Object(
   {
-    folderId: UuidSchema,
+    /** Omitted or null to leave it unfiled. */
+    folderId: Type.Optional(Type.Union([UuidSchema, Type.Null()])),
     name: Type.String({ minLength: 1, maxLength: 80 }),
-    note: Type.Optional(Type.Union([Type.String({ maxLength: 500 }), Type.Null()])),
+    note: Type.Optional(NullableString({ maxLength: 500 })),
     enabled: Type.Optional(Type.Boolean()),
     ...scheduleProperties,
   },
@@ -102,9 +127,9 @@ export type CreateAlarmBody = Static<typeof CreateAlarmBodySchema>;
 /** Updates replace the alarm wholesale; enable/disable has its own routes. */
 export const UpdateAlarmBodySchema = Type.Object(
   {
-    folderId: UuidSchema,
+    folderId: Type.Optional(Type.Union([UuidSchema, Type.Null()])),
     name: Type.String({ minLength: 1, maxLength: 80 }),
-    note: Type.Optional(Type.Union([Type.String({ maxLength: 500 }), Type.Null()])),
+    note: Type.Optional(NullableString({ maxLength: 500 })),
     ...scheduleProperties,
   },
   { additionalProperties: false }
@@ -114,6 +139,8 @@ export type UpdateAlarmBody = Static<typeof UpdateAlarmBodySchema>;
 export const ListAlarmsQuerySchema = Type.Object(
   {
     folderId: Type.Optional(UuidSchema),
+    /** The alarms with no folder at all. Ignored when folderId is given. */
+    unfiled: Type.Optional(Type.Boolean()),
     enabled: Type.Optional(Type.Boolean()),
     q: Type.Optional(Type.String({ maxLength: 100 })),
     sort: Type.Optional(
@@ -199,8 +226,9 @@ export type BulkEnableBody = Static<typeof BulkEnableBodySchema>;
 export const UpcomingOccurrenceSchema = Type.Object({
   alarmId: UuidSchema,
   alarmName: Type.String(),
-  folderId: UuidSchema,
-  folderName: Type.String(),
+  /** Both null for an unfiled alarm, which still has to raise its notification. */
+  folderId: Type.Union([UuidSchema, Type.Null()]),
+  folderName: Type.Union([Type.String(), Type.Null()]),
   timezone: Type.String(),
   note: Type.Union([Type.String(), Type.Null()]),
   speechText: Type.Union([Type.String(), Type.Null()]),
