@@ -327,7 +327,9 @@ export function AlarmsPage() {
           </p>
         ) : (
           <table className="table" data-testid="alarm-table">
-            <caption className="visually-hidden">Alarms in {folder.data?.name ?? 'this folder'}</caption>
+            <caption className="visually-hidden">
+              {unfiled ? 'Alarms with no folder' : `Alarms in ${folder.data?.name ?? 'this folder'}`}
+            </caption>
             <thead>
               <tr>
                 {showMultiAlarmTools ? <th scope="col">Select</th> : null}
