@@ -4,6 +4,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 import { App } from './App';
 import { ToasterProvider } from './components/Toaster';
+// Bundled, not fetched: the app makes no external request at runtime.
+import '@fontsource-variable/bricolage-grotesque/wght.css';
+import '@fontsource-variable/figtree/wght.css';
 import './styles.css';
 
 const queryClient = new QueryClient({

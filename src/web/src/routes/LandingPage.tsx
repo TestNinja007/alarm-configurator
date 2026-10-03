@@ -9,6 +9,8 @@ import {
   SwitchingArt,
 } from '../components/Illustrations';
 
+const REPO_URL = 'https://github.com/TestNinja007/alarm-configurator';
+
 /**
  * What a signed-out visitor lands on.
  *
@@ -29,44 +31,56 @@ export function LandingPage() {
 
   return (
     <main className="landing" data-testid="landing-page">
+      <p className="landing-beta" data-testid="landing-beta">
+        <span className="landing-beta-tag">Beta</span>
+        Nudge is early and still changing. It is open source — the whole thing is{' '}
+        <a href={REPO_URL} target="_blank" rel="noreferrer" data-testid="landing-repo-link">
+          on GitHub
+        </a>
+        .
+      </p>
+
       <nav className="landing-nav" data-testid="landing-nav">
         <span className="auth-lockup">
           <Logo size={30} />
           <span className="landing-wordmark">Nudge</span>
         </span>
-        <Link className="button" to="/login" data-testid="landing-nav-login-link">
-          Sign in
-        </Link>
+        <span className="landing-nav-signin">
+          <span className="landing-nav-prompt">Already part of the journey?</span>
+          <Link className="button landing-button-ghost" to="/login" data-testid="landing-nav-login-link">
+            Sign in!
+          </Link>
+        </span>
       </nav>
 
-      <section className="landing-hero">
+      <section className="landing-hero panel panel-blue">
         <div className="landing-copy">
-          <h1 className="landing-headline">Alarms that actually work with you.</h1>
+          <p className="landing-eyebrow">Recurring alarms that speak</p>
+          <h1 className="landing-headline">Your day already has a shape.</h1>
 
           <p className="landing-lead" data-testid="landing-lead">
-            Nudge began with one stubborn problem: alternating between unlike
-            activities in the same day. A block of work, then a block of
-            training, then back again. The switch is the part everyone is worst
-            at — easy to postpone, easier to forget entirely.
+            Nudge helps you hold it. Set the things you mean to do, and it tells
+            you — out loud — when it is time to move to the next one.
           </p>
 
           <div className="landing-cta">
             {canRegister ? (
               <Link
-                className="button button-primary button-large"
+                className="button button-primary landing-button-join"
                 to="/register"
                 data-testid="landing-register-link"
               >
-                Join us today
+                Join Us Today!!
               </Link>
-            ) : null}
-            <Link
-              className={canRegister ? 'button button-large' : 'button button-primary button-large'}
-              to="/login"
-              data-testid="landing-login-link"
-            >
-              Sign in
-            </Link>
+            ) : (
+              <Link
+                className="button button-primary landing-button-join"
+                to="/login"
+                data-testid="landing-login-link"
+              >
+                Sign in!
+              </Link>
+            )}
           </div>
 
           {canRegister ? (
@@ -86,45 +100,69 @@ export function LandingPage() {
       </section>
 
       <section className="landing-section" data-testid="landing-about">
-        <h2 className="landing-section-title">It was never only about training</h2>
+        <h2 className="landing-section-title">It started with one stubborn problem</h2>
 
         <p className="landing-prose">
-          Nudge works anywhere a day has a shape. At home, around meals, while
-          studying, with the kids, winding down at the end of it. Anything you
-          mean to do at a particular time, repeatedly, and keep not doing.
+          Alternating between unlike activities in a single day — a block of
+          work, then a block of training, then back again. The switch is the
+          part everyone is worst at. Easy to postpone, easier to forget
+          entirely.
         </p>
 
         <div className="landing-cards">
-          <article className="card landing-card">
+          <article className="panel panel-blue landing-card">
             <SwitchingArt />
             <h3 className="landing-card-title">Built for switching</h3>
             <p>
-              Alternate work and exercise, study and rest, without either one
-              quietly swallowing the whole day. Group them into folders and run
-              them on their own schedules.
+              Work and exercise, study and rest, without either one quietly
+              swallowing the whole day.
             </p>
           </article>
 
-          <article className="card landing-card">
+          <article className="panel panel-peach landing-card">
             <SpeechArt />
             <h3 className="landing-card-title">A nudge, not a siren</h3>
             <p>
-              Alarms speak. Set several messages and each repeat says a
-              different one, so it stays something you hear rather than
-              something you learn to sleep through.
+              Alarms speak. Give one several messages and each repeat says a
+              different one, so it stays something you hear.
             </p>
           </article>
 
-          <article className="card landing-card">
+          <article className="panel panel-mint landing-card">
             <EverywhereArt />
             <h3 className="landing-card-title">Every part of the day</h3>
             <p>
-              Daily, weekly, every third Tuesday, weekdays only. Nudge works out
-              when each one lands, warns you when two collide, and keeps the
-              rest to itself.
+              Home, study, meals, training, winding down. Anything worth doing
+              on a schedule.
             </p>
           </article>
         </div>
+      </section>
+
+      <section className="panel panel-white landing-detail" data-testid="landing-detail">
+        <div className="landing-detail-copy">
+          <h2 className="landing-detail-title">It works out when each one lands</h2>
+          <p>
+            Daily, weekly, weekdays only, every third Tuesday. Nudge does the
+            arithmetic, warns you when two alarms collide, and keeps the rest to
+            itself.
+          </p>
+        </div>
+
+        <ul className="landing-samples">
+          <li>
+            <span className="landing-dot landing-dot-blue" />
+            Weekdays · 07:30 · Morning run
+          </li>
+          <li>
+            <span className="landing-dot landing-dot-coral" />
+            Every 90 minutes · Stand up
+          </li>
+          <li>
+            <span className="landing-dot landing-dot-green" />
+            Sundays · 19:00 · Plan the week
+          </li>
+        </ul>
       </section>
 
       <footer className="landing-footer">
@@ -144,6 +182,10 @@ export function LandingPage() {
           <Link to="/login" data-testid="landing-footer-login-link">
             Sign in
           </Link>
+          {' · '}
+          <a href={REPO_URL} target="_blank" rel="noreferrer">
+            Source
+          </a>
         </p>
       </footer>
     </main>

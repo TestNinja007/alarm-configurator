@@ -20,18 +20,26 @@
   --gutter: 16px;
 
   /*
+   * Bundled through @fontsource rather than fetched from a font CDN: the
+   * app makes no external request at runtime, so a test run never waits on
+   * a third party or renders a fallback face by accident.
+   */
+  --font-body: 'Figtree Variable', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Bricolage Grotesque Variable', var(--font-body);
+
+  /*
    * Illustration palette, kept apart from the UI tokens above. These only
    * ever appear inside a drawing, which wants softer fills than a control
    * does, and nothing outside Illustrations.tsx should reach for them.
    */
-  --art-wash: #eaf0fd;
-  --art-blue: #2563eb;
-  --art-blue-soft: #c3d4fb;
-  --art-amber: #d97706;
-  --art-amber-soft: #fbe3c3;
-  --art-green: #0d9460;
-  --art-green-soft: #bfe6d4;
-  --art-figure: #475569;
+  --art-wash: #d5e1f8;
+  --art-fill: #ffffff;
+  --art-mat: #b9cbf2;
+  --art-ink: #4338ca;
+  --art-coral: #d4573d;
+  --art-coral-deep: #c0472f;
+  --art-green: #1f8a70;
+  --art-figure: #3a3856;
 }
 
 * {
@@ -42,7 +50,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font: 16px/1.5 var(--font-body);
 }
 
 .visually-hidden {
@@ -75,6 +83,7 @@ body {
 }
 
 .topbar-brand {
+  font-family: var(--font-display);
   display: flex;
   gap: 8px;
   align-items: center;
@@ -144,6 +153,7 @@ body {
 
 .auth-wordmark {
   margin: 0;
+  font-family: var(--font-display);
   font-size: 2.1rem;
   font-weight: 650;
   letter-spacing: -0.025em;
@@ -840,81 +850,185 @@ a:focus-visible {
 /* Landing page ------------------------------------------------------------ */
 
 /*
- * The signed-out front door. It does not reuse .page: that is capped at 960px
- * for dense forms and tables, and a hero wants more room than a table does.
+ * The signed-out front door, and a different visual world from the application
+ * behind it: softer, rounder, built from tinted panels rather than the dense
+ * bordered cards a signed-in user works in. Its palette is scoped to .landing
+ * so none of it leaks into those screens.
  */
 .landing {
-  max-width: 1080px;
+  --land-bg: #f6f4fb;
+  --land-ink: #1b1a2e;
+  --land-muted: #45435c;
+  --land-accent: #4338ca;
+  --land-accent-ink: #3b32b5;
+  --land-border: #d5d0e8;
+
+  max-width: 1160px;
   margin: 0 auto;
-  padding: 0 var(--gutter) 64px;
+  padding: 0 var(--gutter) 72px;
+  color: var(--land-ink);
 }
 
+/* Fixed, so the ground stays put while the page scrolls over it. */
 .landing::before {
   content: "";
   position: fixed;
   inset: 0;
   z-index: -1;
-  background:
-    radial-gradient(52rem 34rem at 78% -6%, rgb(29 78 216 / 10%), transparent 62%),
-    radial-gradient(40rem 30rem at 6% 46%, rgb(217 119 6 / 6%), transparent 60%);
-  pointer-events: none;
+  background: var(--land-bg);
+}
+
+.landing a {
+  color: var(--land-accent-ink);
+}
+
+.landing .panel {
+  border-radius: 36px;
+}
+
+.landing .panel-blue {
+  background: #e6edfb;
+}
+
+.landing .panel-peach {
+  background: #faebe4;
+}
+
+.landing .panel-mint {
+  background: #e0f0e8;
+}
+
+.landing .panel-white {
+  background: #ffffff;
+}
+
+/* Said once, at the top, before anyone has invested any attention. */
+.landing-beta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 16px 0 4px;
+  color: var(--land-muted);
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+.landing-beta-tag {
+  padding: 3px 12px;
+  background: var(--land-accent);
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 0.74rem;
+  font-weight: 650;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
 }
 
 .landing-nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 16px;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 0;
+  padding: 20px 0 28px;
 }
 
 .landing-wordmark {
-  font-size: 1.4rem;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.landing-nav-signin {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+}
+
+.landing-nav-prompt {
+  color: var(--land-muted);
+  font-size: 1rem;
+}
+
+/*
+ * The only two buttons on the page: one filled, one outlined, and nothing
+ * repeated further down. A second "join" at the foot of the page only makes
+ * the first one look less like the thing to do.
+ */
+.landing .landing-button-ghost {
+  padding: 12px 26px;
+  background: #ffffff;
+  border-color: var(--land-border);
+  border-radius: 999px;
+  color: var(--land-accent-ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.landing .landing-button-join {
+  padding: 17px 36px;
+  background: var(--land-accent);
+  border-color: var(--land-accent);
+  /* Stated, not inherited: .landing a above would otherwise paint it indigo
+     on indigo. */
+  color: var(--accent-text);
+  border-radius: 999px;
+  font-size: 1.15rem;
   font-weight: 650;
-  letter-spacing: -0.02em;
+  text-decoration: none;
+}
+
+.landing .landing-button-join:hover {
+  background: #352bab;
 }
 
 .landing-hero {
   display: flex;
   flex-direction: column;
   gap: 32px;
-  padding: 24px 0 48px;
+  padding: 44px 32px;
+}
+
+.landing-eyebrow {
+  margin: 0 0 18px;
+  color: var(--land-accent-ink);
+  font-size: 0.92rem;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
 .landing-headline {
   margin: 0;
-  font-size: 2.1rem;
-  font-weight: 680;
-  letter-spacing: -0.03em;
-  line-height: 1.15;
+  font-family: var(--font-display);
+  font-size: 2.4rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
   text-wrap: balance;
 }
 
 .landing-lead {
-  margin: 18px 0 0;
-  max-width: 48ch;
-  color: var(--muted);
-  font-size: 1.05rem;
+  margin: 22px 0 0;
+  max-width: 34ch;
+  color: var(--land-muted);
+  font-size: 1.12rem;
+  line-height: 1.55;
 }
 
 .landing-cta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 26px;
-}
-
-.button-large {
-  padding: 12px 22px;
-  font-size: 1.02rem;
-  font-weight: 600;
+  margin-top: 32px;
 }
 
 .landing-cta-note {
-  margin: 12px 0 0;
-  color: var(--muted);
-  font-size: 0.95rem;
+  margin: 16px 0 0;
+  color: var(--land-muted);
+  font-size: 1rem;
 }
 
 .landing-art {
@@ -924,31 +1038,35 @@ a:focus-visible {
 
 .art-hero {
   width: 100%;
-  max-width: 400px;
+  max-width: 360px;
   height: auto;
 }
 
 .art-spot {
-  width: 108px;
-  height: 90px;
+  width: 104px;
+  height: 88px;
 }
 
 .landing-section {
-  padding-top: 24px;
+  padding-top: 72px;
 }
 
 .landing-section-title {
   margin: 0;
-  font-size: 1.6rem;
-  font-weight: 650;
-  letter-spacing: -0.02em;
+  max-width: 20ch;
+  font-family: var(--font-display);
+  font-size: 1.9rem;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
 }
 
 .landing-prose {
-  margin: 14px 0 32px;
-  max-width: 58ch;
-  color: var(--muted);
-  font-size: 1.02rem;
+  margin: 18px 0 0;
+  max-width: 60ch;
+  color: var(--land-muted);
+  font-size: 1.08rem;
+  line-height: 1.6;
 }
 
 /*
@@ -957,67 +1075,160 @@ a:focus-visible {
  */
 .landing-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(258px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(268px, 1fr));
+  gap: 22px;
+  margin-top: 36px;
 }
 
 .landing-card {
-  margin-bottom: 0;
-  padding: 22px;
+  padding: 32px 30px 36px;
 }
 
 .landing-card-title {
-  margin: 14px 0 8px;
-  font-size: 1.08rem;
+  margin: 16px 0 10px;
+  font-family: var(--font-display);
+  font-size: 1.28rem;
   font-weight: 650;
+  letter-spacing: -0.02em;
 }
 
 .landing-card p {
   margin: 0;
-  color: var(--muted);
-  font-size: 0.97rem;
+  color: var(--land-muted);
+  font-size: 1.02rem;
+  line-height: 1.55;
+}
+
+.landing-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 36px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 72px;
+  padding: 44px 36px;
+}
+
+.landing-detail-copy {
+  flex: 1 1 380px;
+  min-width: 0;
+}
+
+.landing-detail-title {
+  margin: 0 0 16px;
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+
+.landing-detail-copy p {
+  margin: 0;
+  max-width: 46ch;
+  color: var(--land-muted);
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+
+.landing-samples {
+  flex: 1 1 340px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.landing-samples li {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 16px 20px;
+  background: var(--land-bg);
+  border-radius: 18px;
+  font-size: 1.02rem;
+  font-weight: 500;
+}
+
+.landing-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+.landing-dot-blue {
+  background: var(--land-accent);
+}
+
+.landing-dot-coral {
+  background: #d4573d;
+}
+
+.landing-dot-green {
+  background: #1f8a70;
 }
 
 .landing-footer {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 14px;
   align-items: center;
   justify-content: space-between;
-  margin-top: 56px;
-  padding-top: 24px;
-  border-top: 1px solid var(--border);
+  margin-top: 64px;
+  padding-top: 26px;
+  border-top: 1px solid #dcd9ea;
 }
 
 .landing-footer-wordmark {
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-weight: 650;
 }
 
 .landing-footer-note {
   margin: 0;
-  color: var(--muted);
-  font-size: 0.93rem;
+  color: var(--land-muted);
+  font-size: 0.95rem;
 }
 
-@media (min-width: 860px) {
+@media (min-width: 900px) {
+  .landing {
+    padding-bottom: 88px;
+  }
+
   .landing-hero {
     display: grid;
-    grid-template-columns: 1fr 400px;
+    grid-template-columns: 1fr 380px;
     align-items: center;
     gap: 48px;
-    padding: 40px 0 72px;
+    padding: 64px 56px;
   }
 
   .landing-headline {
-    font-size: 3.1rem;
+    font-size: 3.6rem;
   }
 
   .landing-lead {
-    font-size: 1.14rem;
+    font-size: 1.25rem;
+  }
+
+  .landing-section {
+    padding-top: 88px;
   }
 
   .landing-section-title {
-    font-size: 2rem;
+    font-size: 2.6rem;
+  }
+
+  .landing-detail {
+    margin-top: 88px;
+    padding: 56px;
+  }
+
+  .landing-detail-title {
+    font-size: 2.1rem;
   }
 }
 
