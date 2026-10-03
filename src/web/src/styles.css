@@ -1099,22 +1099,17 @@ a:focus-visible {
   line-height: 1.55;
 }
 
-.landing-detail {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 36px;
-  align-items: center;
-  justify-content: space-between;
+/*
+ * Folders, shown as what they are for. A single preset per folder proved
+ * nothing a reader could not assume; three of them look like the library the
+ * section is claiming you end up with.
+ */
+.landing-library {
   margin-top: 72px;
-  padding: 44px 36px;
+  padding: 40px 30px 44px;
 }
 
-.landing-detail-copy {
-  flex: 1 1 380px;
-  min-width: 0;
-}
-
-.landing-detail-title {
+.landing-library-title {
   margin: 0 0 16px;
   font-family: var(--font-display);
   font-size: 1.7rem;
@@ -1123,56 +1118,63 @@ a:focus-visible {
   line-height: 1.2;
 }
 
-.landing-detail-copy p {
+.landing-library p {
   margin: 0;
-  max-width: 46ch;
+  max-width: 62ch;
   color: var(--land-muted);
   font-size: 1.05rem;
   line-height: 1.6;
 }
 
-.landing-detail-copy p + p {
+.landing-library p + p {
   margin-top: 14px;
 }
 
-.landing-presets {
-  flex: 1 1 352px;
+.landing-folders {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(234px, 1fr));
+  gap: 18px;
+  margin-top: 32px;
+}
+
+.landing-folder {
+  padding: 22px 22px 24px;
+  background: var(--land-bg);
+  border-radius: 22px;
+}
+
+.landing-folder-name {
+  margin: 0 0 16px;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--land-accent-ink);
+}
+
+.landing-folder ul {
   margin: 0;
   padding: 0;
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
 }
 
-.landing-presets li {
+.landing-folder li {
   display: grid;
-  grid-template-columns: auto 1fr;
-  column-gap: 10px;
-  row-gap: 4px;
-  align-items: baseline;
-  padding: 14px 18px;
-  background: var(--land-bg);
-  border-radius: 16px;
-}
-
-.landing-preset-folder {
-  padding: 3px 11px;
-  background: #e6edfb;
-  border-radius: 999px;
-  color: var(--land-accent-ink);
-  font-size: 0.8rem;
-  font-weight: 650;
+  row-gap: 2px;
 }
 
 .landing-preset-name {
-  font-weight: 650;
+  font-size: 0.98rem;
+  font-weight: 600;
 }
 
 .landing-preset-detail {
-  grid-column: 1 / -1;
   color: var(--land-muted);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
 }
 
 .landing-prose-close {
@@ -1322,20 +1324,20 @@ a:focus-visible {
     font-size: 2.6rem;
   }
 
-  .landing-detail {
+  .landing-library {
     margin-top: 88px;
-    padding: 56px;
+    padding: 52px 48px 56px;
   }
 
-  .landing-detail-title {
+  .landing-library-title {
     font-size: 2.1rem;
   }
 }
 
 @media (min-width: 900px) {
   .landing-scale {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 18px;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 26px;
   }
 
   /* Horizontal now: the rule runs the width and the stops hang below it. */
