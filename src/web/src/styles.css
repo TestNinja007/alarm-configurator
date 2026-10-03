@@ -994,15 +994,6 @@ a:focus-visible {
   padding: 44px 32px;
 }
 
-.landing-eyebrow {
-  margin: 0 0 18px;
-  color: var(--land-accent-ink);
-  font-size: 0.92rem;
-  font-weight: 650;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
 .landing-headline {
   margin: 0;
   font-family: var(--font-display);
@@ -1013,11 +1004,21 @@ a:focus-visible {
   text-wrap: balance;
 }
 
+.landing-subhead {
+  margin: 18px 0 0;
+  max-width: 24ch;
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+}
+
 .landing-lead {
-  margin: 22px 0 0;
-  max-width: 34ch;
+  margin: 16px 0 0;
+  max-width: 42ch;
   color: var(--land-muted);
-  font-size: 1.12rem;
+  font-size: 1rem;
   line-height: 1.55;
 }
 
@@ -1317,8 +1318,12 @@ a:focus-visible {
     font-size: 3.6rem;
   }
 
+  .landing-subhead {
+    font-size: 1.8rem;
+  }
+
   .landing-lead {
-    font-size: 1.25rem;
+    font-size: 1.06rem;
   }
 
   .landing-section {

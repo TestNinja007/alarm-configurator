@@ -120,10 +120,11 @@ export function LandingPage() {
 
       <section className="landing-hero panel panel-blue">
         <div className="landing-copy">
-          <p className="landing-eyebrow">Plan your day out loud</p>
-          <h1 className="landing-headline">
+          <h1 className="landing-headline">Plan your day out loud.</h1>
+
+          <p className="landing-subhead">
             Whatever vague idea pops into your head.
-          </h1>
+          </p>
 
           <p className="landing-lead" data-testid="landing-lead">
             Nudge helps you shape it, and hold on to it. Set the structure in
