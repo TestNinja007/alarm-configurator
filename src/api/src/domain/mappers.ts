@@ -4,7 +4,7 @@ import type { Folder } from '../schemas/folders.js';
 
 export interface AlarmRow {
   id: string;
-  folder_id: string;
+  folder_id: string | null;
   name: string;
   note: string | null;
   enabled: boolean;
@@ -21,6 +21,7 @@ export interface AlarmRow {
   repeat_every: number | null;
   repeat_unit: 'seconds' | 'minutes' | 'hours' | null;
   rule: Rule;
+  self_destruct: boolean;
   created_at: Date;
   updated_at: Date;
 }
@@ -54,6 +55,7 @@ export function toAlarm(row: AlarmRow): Alarm {
     repeatEvery: row.repeat_every,
     repeatUnit: row.repeat_unit,
     rule: row.rule,
+    selfDestruct: row.self_destruct,
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
   };

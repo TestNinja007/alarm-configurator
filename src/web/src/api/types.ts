@@ -64,7 +64,8 @@ export interface Folder {
 
 export interface Alarm {
   id: string;
-  folderId: string;
+  /** Null while unfiled: made in the moment, sorted into a folder later. */
+  folderId: string | null;
   name: string;
   note: string | null;
   enabled: boolean;
@@ -81,6 +82,8 @@ export interface Alarm {
   repeatEvery: number | null;
   repeatUnit: 'seconds' | 'minutes' | 'hours' | null;
   rule: Rule;
+  /** Removes itself once it has no occurrence left to fire. */
+  selfDestruct: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -196,8 +199,8 @@ export interface PendingVerification {
 export interface UpcomingOccurrence {
   alarmId: string;
   alarmName: string;
-  folderId: string;
-  folderName: string;
+  folderId: string | null;
+  folderName: string | null;
   timezone: string;
   note: string | null;
   speechText: string | null;

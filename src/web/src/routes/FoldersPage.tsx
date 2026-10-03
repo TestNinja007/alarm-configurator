@@ -99,6 +99,17 @@ export function FoldersPage() {
           </ul>
         ) : folders.data && folders.data.items.length > 0 ? (
           <ul className="folder-list" data-testid="folder-list">
+            {/*
+              Always present, never created, never deleted: the alarms that have
+              no folder have to be reachable from somewhere, and a row that
+              behaves like the others is the least new idea to explain.
+            */}
+            <li className="folder-row" data-testid="folder-row-unfiled">
+              <Link className="folder-link" to="/folders/unfiled" data-testid="unfiled-link">
+                Unfiled
+              </Link>
+              <span className="folder-counts">Alarms you have not sorted yet</span>
+            </li>
             {folders.data.items.map((folder) => (
               <li key={folder.id} className="folder-row" data-testid="folder-row" data-folder-id={folder.id}>
                 <Link className="folder-link" to={`/folders/${folder.id}`} data-testid="folder-link">
@@ -122,7 +133,11 @@ export function FoldersPage() {
           </ul>
         ) : (
           <p className="empty-state" data-testid="folder-list-empty">
-            No folders yet. Create one to start adding alarms.
+            No folders yet. Create one, or{' '}
+            <Link to="/folders/unfiled" data-testid="unfiled-link-empty">
+              start an alarm without one
+            </Link>
+            .
           </p>
         )}
       </section>

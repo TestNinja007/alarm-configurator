@@ -40,15 +40,26 @@ export function specFromRow(row: AlarmRow): ScheduleSpec {
   };
 }
 
-/** Every enabled alarm in the folder, optionally excluding one by id. */
-async function enabledSiblings(folderId: string, excludeAlarmId?: string): Promise<AlarmRow[]> {
-  const params: (string | null)[] = [folderId];
+/**
+ * Every enabled alarm in the same scope, optionally excluding one by id.
+ *
+ * Unfiled alarms collide with each other and with nothing else: the bucket
+ * behaves as one more folder, so the rule stays the same sentence wherever an
+ * alarm happens to live.
+ */
+async function enabledSiblings(
+  userId: string,
+  folderId: string | null,
+  excludeAlarmId?: string,
+): Promise<AlarmRow[]> {
+  const params: (string | null)[] = [folderId ?? userId];
+  const scope = folderId ? 'folder_id = $1' : 'user_id = $1 AND folder_id IS NULL';
   let sql = `SELECT id, folder_id, name, note, enabled, time_of_day, timezone, start_date,
                     end_date, end_time, end_after_occurrences, speech_text, speech_final_text, speech_voice,
                     end_time_of_day, repeat_every,
-                    repeat_unit, rule, created_at, updated_at
+                    repeat_unit, rule, self_destruct, created_at, updated_at
                FROM alarms
-              WHERE folder_id = $1 AND enabled = true`;
+              WHERE ${scope} AND enabled = true`;
 
   if (excludeAlarmId) {
     params.push(excludeAlarmId);
@@ -66,12 +77,13 @@ async function enabledSiblings(folderId: string, excludeAlarmId?: string): Promi
  * invisible to this rule in both directions.
  */
 export async function findCollision(
-  folderId: string,
+  userId: string,
+  folderId: string | null,
   candidate: ScheduleSpec,
   excludeAlarmId?: string,
 ): Promise<Collision | undefined> {
   const window = conflictWindow();
-  const siblings = await enabledSiblings(folderId, excludeAlarmId);
+  const siblings = await enabledSiblings(userId, folderId, excludeAlarmId);
 
   let earliest: Collision | undefined;
 
@@ -110,9 +122,12 @@ export interface ConflictPair {
  * enabling an alarm does not run the check that creating one does; see the
  * README section on conflicts.
  */
-export async function conflictsInFolder(folderId: string): Promise<ConflictPair[]> {
+export async function conflictsInFolder(
+  userId: string,
+  folderId: string | null,
+): Promise<ConflictPair[]> {
   const window = conflictWindow();
-  const alarms = await enabledSiblings(folderId);
+  const alarms = await enabledSiblings(userId, folderId);
   const pairs: ConflictPair[] = [];
 
   for (let i = 0; i < alarms.length; i += 1) {

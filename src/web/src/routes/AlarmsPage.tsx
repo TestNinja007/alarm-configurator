@@ -28,8 +28,14 @@ const SORT_OPTIONS: { value: AlarmSort; label: string }[] = [
 /** A-08: these controls only exist once a folder holds two or more alarms. */
 const MULTI_ALARM_THRESHOLD = 2;
 
+/** The URL segment that stands for "no folder at all". */
+const UNFILED = 'unfiled';
+
 export function AlarmsPage() {
   const { folderId = '' } = useParams();
+  // The unfiled bucket is not a folder, so there is nothing to fetch for it
+  // and no name to put in the heading but its own.
+  const unfiled = folderId === UNFILED;
   const queryClient = useQueryClient();
   const toast = useToast();
 
@@ -45,11 +51,13 @@ export function AlarmsPage() {
   const folder = useQuery({
     queryKey: ['folder', folderId],
     queryFn: () => api.get<Folder>(`/folders/${folderId}`),
+    enabled: !unfiled,
   });
 
   const summary = useQuery({
     queryKey: ['folder-summary', folderId],
     queryFn: () => api.get<FolderSummary>(`/folders/${folderId}/summary`),
+    enabled: !unfiled,
   });
 
   const draft = useQuery({
@@ -80,7 +88,9 @@ export function AlarmsPage() {
   const alarms = useQuery({
     queryKey: listKey,
     queryFn: () => {
-      const params = new URLSearchParams({ folderId, sort });
+      const params = unfiled
+        ? new URLSearchParams({ unfiled: 'true', sort })
+        : new URLSearchParams({ folderId, sort });
       if (debouncedSearch.trim()) params.set('q', debouncedSearch.trim());
       return api.get<AlarmList>(`/alarms?${params.toString()}`);
     },
@@ -191,11 +201,15 @@ export function AlarmsPage() {
           Folders
         </Link>
         <span aria-hidden="true"> / </span>
-        <span data-testid="alarms-folder-name">{folder.data?.name ?? '…'}</span>
+        <span data-testid="alarms-folder-name">
+          {unfiled ? 'Unfiled' : (folder.data?.name ?? '…')}
+        </span>
       </nav>
 
       <header className="page-header">
-        <h1 className="page-title">{folder.data?.name ?? 'Alarms'}</h1>
+        <h1 className="page-title">
+          {unfiled ? 'Unfiled' : (folder.data?.name ?? 'Alarms')}
+        </h1>
         <Link
           className="button button-primary"
           to={`/folders/${folderId}/alarms/new`}
@@ -215,6 +229,8 @@ export function AlarmsPage() {
         </p>
       ) : null}
 
+      {/* The summary is a folder endpoint; the unfiled bucket is not a folder. */}
+      {unfiled ? null : (
       <section className="summary-strip" data-testid="folder-summary">
         <span data-testid="summary-alarm-count">{summary.data?.alarmCount ?? 0} alarms</span>
         <span data-testid="summary-enabled-count">{summary.data?.enabledCount ?? 0} enabled</span>
@@ -225,6 +241,7 @@ export function AlarmsPage() {
           next: {summary.data?.nextOccurrence?.local ?? 'none'}
         </span>
       </section>
+      )}
 
       <div className="toolbar" data-testid="alarm-toolbar">
         <div className="field">
@@ -304,7 +321,9 @@ export function AlarmsPage() {
           <p className="empty-state" data-testid="alarm-list-empty">
             {debouncedSearch.trim()
               ? `No alarms match "${debouncedSearch.trim()}".`
-              : 'This folder has no alarms yet.'}
+              : unfiled
+                ? 'Nothing unfiled. Alarms made without a folder wait here.'
+                : 'This folder has no alarms yet.'}
           </p>
         ) : (
           <table className="table" data-testid="alarm-table">
@@ -402,7 +421,12 @@ export function AlarmsPage() {
         />
       ) : null}
 
-      {showMultiAlarmTools ? <ConflictsPanel folderId={folderId} /> : null}
+      {/*
+        The panel reports collisions that already exist in a folder. The
+        unfiled bucket still refuses a colliding write, which is the half
+        that keeps the data right.
+      */}
+      {showMultiAlarmTools && !unfiled ? <ConflictsPanel folderId={folderId} /> : null}
 
       <ConfirmDialog
         open={pendingDelete !== undefined}

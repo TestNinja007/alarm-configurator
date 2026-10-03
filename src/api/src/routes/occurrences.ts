@@ -48,8 +48,8 @@ function parseInstant(value: string | undefined, field: string): Date | undefine
 async function loadOwnedAlarm(userId: string, alarmId: string): Promise<AlarmRow> {
   const row = await queryOne<AlarmRow>(
     `SELECT ${ALARM_COLUMNS}
-       FROM alarms a JOIN folders f ON f.id = a.folder_id
-      WHERE a.id = $1 AND f.user_id = $2`,
+       FROM alarms a
+      WHERE a.id = $1 AND a.user_id = $2`,
     [alarmId, userId],
   );
   if (!row) throw notFound('Alarm');
@@ -123,11 +123,11 @@ export async function occurrenceRoutes(app: FastifyInstance): Promise<void> {
       const until = new Date(now.getTime() + withinMinutes * 60 * 1000);
 
       const rows = (
-        await query<AlarmRow & { folder_name: string }>(
+        await query<AlarmRow & { folder_name: string | null }>(
           `SELECT ${ALARM_COLUMNS}, f.name AS folder_name
              FROM alarms a
-             JOIN folders f ON f.id = a.folder_id
-            WHERE f.user_id = $1 AND a.enabled = true`,
+             LEFT JOIN folders f ON f.id = a.folder_id
+            WHERE a.user_id = $1 AND a.enabled = true`,
           [request.user!.id],
         )
       ).rows;
@@ -267,7 +267,7 @@ export async function occurrenceRoutes(app: FastifyInstance): Promise<void> {
     async (request) => {
       await assertOwnsFolder(request.user!.id, request.params.id);
       return {
-        items: await conflictsInFolder(request.params.id),
+        items: await conflictsInFolder(request.user!.id, request.params.id),
         windowDays: CONFLICT_WINDOW_DAYS,
       };
     },
