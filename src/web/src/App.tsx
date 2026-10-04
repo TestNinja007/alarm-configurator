@@ -35,7 +35,9 @@ function TopBar({ session }: { session: Session }) {
     mutationFn: () => api.post<void>('/auth/logout'),
     onSuccess: () => {
       queryClient.clear();
-      void navigate('/login');
+      // The front door, not the form. Signing out is not the start of
+      // signing back in.
+      void navigate('/');
     },
   });
 

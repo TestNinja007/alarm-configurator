@@ -51,6 +51,18 @@ export function FoldersPage() {
     <main className="page" data-testid="folders-page">
       <header className="page-header">
         <h1 className="page-title">Folders</h1>
+        {/*
+          Straight to a new alarm without picking a container first. Deciding
+          where it belongs before deciding what it is gets the order backwards
+          for anything made in the moment.
+        */}
+        <Link
+          className="button button-primary"
+          to="/folders/unfiled/alarms/new"
+          data-testid="alarm-create-unfiled-link"
+        >
+          New alarm
+        </Link>
       </header>
 
       <form className="card form form-inline" onSubmit={onSubmit} noValidate data-testid="folder-create-form">
