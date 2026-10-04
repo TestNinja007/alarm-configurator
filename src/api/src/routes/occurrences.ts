@@ -61,7 +61,7 @@ async function assertOwnsFolder(userId: string, folderId: string): Promise<void>
     'SELECT id FROM folders WHERE id = $1 AND user_id = $2',
     [folderId, userId],
   );
-  if (!row) throw notFound('Folder');
+  if (!row) throw notFound('Group');
 }
 
 export async function occurrenceRoutes(app: FastifyInstance): Promise<void> {

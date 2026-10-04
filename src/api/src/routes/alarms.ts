@@ -59,7 +59,7 @@ async function assertOwnsFolder(
     [folderId, userId],
   );
   // A folder belonging to somebody else reads as missing, never as forbidden.
-  if (!row) throw notFound('Folder');
+  if (!row) throw notFound('Group');
 }
 
 /** R-08: refuse a write that would put two enabled alarms on the same instant. */

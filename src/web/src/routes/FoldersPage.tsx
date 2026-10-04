@@ -1,9 +1,10 @@
-import { useState, type FormEvent } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { ApiError, api } from '../api/client';
 import { describeRule, type Alarm, type AlarmList, type Folder } from '../api/types';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { NameDialog } from '../components/NameDialog';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { useToast } from '../components/Toaster';
 
@@ -16,6 +17,7 @@ export function FoldersPage() {
   const queryClient = useQueryClient();
   const toast = useToast();
   const [name, setName] = useState('');
+  const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState('');
   const [pendingDelete, setPendingDelete] = useState<Folder | undefined>();
 
@@ -54,6 +56,7 @@ export function FoldersPage() {
     mutationFn: (folderName: string) => api.post<Folder>('/folders', { name: folderName }),
     onSuccess: async (folder) => {
       setName('');
+      setCreating(false);
       await queryClient.invalidateQueries({ queryKey: ['folders'] });
       toast.push('success', `Group "${folder.name}" created.`);
     },
@@ -78,9 +81,13 @@ export function FoldersPage() {
   const createError = createFolder.error instanceof ApiError ? createFolder.error : undefined;
   const nameError = createError?.fieldError('name') ?? createError?.message;
 
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    createFolder.mutate(name);
+  /** Opens clean: a name abandoned last time is not an answer to this time. */
+  function openCreate(open: boolean) {
+    setCreating(open);
+    if (open) {
+      setName('');
+      createFolder.reset();
+    }
   }
 
   const looseAlarms = loose.data?.items ?? [];
@@ -95,13 +102,23 @@ export function FoldersPage() {
           something belongs before deciding what it is gets the order backwards
           for anything made in the moment.
         */}
-        <Link
-          className="button button-primary"
-          to="/folders/unfiled/alarms/new"
-          data-testid="alarm-create-unfiled-link"
-        >
-          New alarm
-        </Link>
+        <span className="page-header-actions">
+          <button
+            type="button"
+            className="button"
+            onClick={() => openCreate(true)}
+            data-testid="folder-create-open-button"
+          >
+            New group
+          </button>
+          <Link
+            className="button button-primary"
+            to="/folders/unfiled/alarms/new"
+            data-testid="alarm-create-unfiled-link"
+          >
+            New alarm
+          </Link>
+        </span>
       </header>
 
       <form
@@ -162,39 +179,6 @@ export function FoldersPage() {
         </section>
       ) : (
         <>
-          <form
-            className="card form form-inline"
-            onSubmit={onSubmit}
-            noValidate
-            data-testid="folder-create-form"
-          >
-            <div className="field">
-              <label htmlFor="folder-name">New group name</label>
-              <input
-                id="folder-name"
-                name="name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                aria-invalid={nameError ? true : undefined}
-                aria-describedby={nameError ? 'folder-name-error' : undefined}
-                data-testid="folder-name-input"
-              />
-              {nameError ? (
-                <p id="folder-name-error" className="field-error" data-testid="folder-name-error">
-                  {nameError}
-                </p>
-              ) : null}
-            </div>
-            <button
-              type="submit"
-              className="button button-primary"
-              disabled={createFolder.isPending || name.trim().length === 0}
-              data-testid="folder-create-button"
-            >
-              Create group
-            </button>
-          </form>
-
           {looseAlarms.length > 0 ? (
             <section
               className="card"
@@ -287,6 +271,21 @@ export function FoldersPage() {
           </section>
         </>
       )}
+
+      <NameDialog
+        open={creating}
+        onOpenChange={openCreate}
+        title="New group"
+        description="A group is a set of alarms you start together — a workout, a wind-down, a work block."
+        label="Group name"
+        value={name}
+        onValueChange={setName}
+        onSubmit={() => createFolder.mutate(name)}
+        submitLabel="Create group"
+        busy={createFolder.isPending}
+        error={nameError}
+        testId="folder-create-dialog"
+      />
 
       <ConfirmDialog
         open={pendingDelete !== undefined}

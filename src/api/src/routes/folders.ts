@@ -91,9 +91,9 @@ export async function folderRoutes(app: FastifyInstance): Promise<void> {
         );
       } catch (error) {
         if (isUniqueViolation(error, 'folders_user_name_key')) {
-          throw conflict('A folder with that name already exists.', {
+          throw conflict('A group with that name already exists.', {
             fields: [
-              { field: 'name', code: 'duplicate_name', message: 'Folder names must be unique.' },
+              { field: 'name', code: 'duplicate_name', message: 'Group names must be unique.' },
             ],
           });
         }
@@ -118,7 +118,7 @@ export async function folderRoutes(app: FastifyInstance): Promise<void> {
     async (request) => {
       const row = await loadFolder(request.user!.id, request.params.id);
       // Another user's folder is indistinguishable from one that does not exist.
-      if (!row) throw notFound('Folder');
+      if (!row) throw notFound('Group');
       return toFolder(row);
     },
   );
@@ -146,16 +146,16 @@ export async function folderRoutes(app: FastifyInstance): Promise<void> {
         );
       } catch (error) {
         if (isUniqueViolation(error, 'folders_user_name_key')) {
-          throw conflict('A folder with that name already exists.', {
+          throw conflict('A group with that name already exists.', {
             fields: [
-              { field: 'name', code: 'duplicate_name', message: 'Folder names must be unique.' },
+              { field: 'name', code: 'duplicate_name', message: 'Group names must be unique.' },
             ],
           });
         }
         throw error;
       }
 
-      if (!updated) throw notFound('Folder');
+      if (!updated) throw notFound('Group');
       return toFolder((await loadFolder(request.user!.id, request.params.id))!);
     },
   );
@@ -173,12 +173,12 @@ export async function folderRoutes(app: FastifyInstance): Promise<void> {
     },
     async (request, reply) => {
       const folder = await loadFolder(request.user!.id, request.params.id);
-      if (!folder) throw notFound('Folder');
+      if (!folder) throw notFound('Group');
 
       // R-10: the flag is required whatever the folder holds, including nothing.
       if (request.query.confirm !== 'true') {
         throw conflict(
-          'Deleting a folder also deletes its alarms. Repeat the request with ?confirm=true.',
+          'Deleting a group also deletes its alarms. Repeat the request with ?confirm=true.',
           { details: { alarmCount: folder.alarm_count } },
         );
       }
