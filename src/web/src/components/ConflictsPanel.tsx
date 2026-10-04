@@ -40,7 +40,7 @@ export function ConflictsPanel({ folderId }: { folderId: string }) {
         </div>
       ) : items.length === 0 ? (
         <p className="empty-state" data-testid="conflicts-panel-empty">
-          No two enabled alarms in this folder share an instant in the next{' '}
+          No two enabled alarms in this group share an instant in the next{' '}
           {conflicts.data?.windowDays ?? 90} days.
         </p>
       ) : (

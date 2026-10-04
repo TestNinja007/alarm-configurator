@@ -198,17 +198,17 @@ export function AlarmsPage() {
     <main className="page" data-testid="alarms-page">
       <nav aria-label="Breadcrumb" className="breadcrumb">
         <Link to="/folders" data-testid="folders-back-link">
-          Folders
+          Alarm groups
         </Link>
         <span aria-hidden="true"> / </span>
         <span data-testid="alarms-folder-name">
-          {unfiled ? 'Unfiled' : (folder.data?.name ?? '…')}
+          {unfiled ? 'Not in a group' : (folder.data?.name ?? '…')}
         </span>
       </nav>
 
       <header className="page-header">
         <h1 className="page-title">
-          {unfiled ? 'Unfiled' : (folder.data?.name ?? 'Alarms')}
+          {unfiled ? 'Not in a group' : (folder.data?.name ?? 'Alarms')}
         </h1>
         <Link
           className="button button-primary"
@@ -322,13 +322,13 @@ export function AlarmsPage() {
             {debouncedSearch.trim()
               ? `No alarms match "${debouncedSearch.trim()}".`
               : unfiled
-                ? 'Nothing unfiled. Alarms made without a folder wait here.'
-                : 'This folder has no alarms yet.'}
+                ? 'No alarms outside a group. They are listed on the groups page.'
+                : 'This group has no alarms yet.'}
           </p>
         ) : (
           <table className="table" data-testid="alarm-table">
             <caption className="visually-hidden">
-              {unfiled ? 'Alarms with no folder' : `Alarms in ${folder.data?.name ?? 'this folder'}`}
+              {unfiled ? 'Alarms in no group' : `Alarms in ${folder.data?.name ?? 'this group'}`}
             </caption>
             <thead>
               <tr>

@@ -42,7 +42,7 @@ export function AdminPage({ currentUserId }: { currentUserId: string }) {
     <main className="page" data-testid="admin-page">
       <nav aria-label="Breadcrumb" className="breadcrumb">
         <Link to="/folders" data-testid="folders-back-link">
-          Folders
+          Groups
         </Link>
         <span aria-hidden="true"> / </span>
         <span>Accounts</span>
@@ -127,7 +127,7 @@ export function AdminPage({ currentUserId }: { currentUserId: string }) {
                       </select>
                     </td>
                     <td data-testid="admin-user-usage">
-                      {user.folders} folders, {user.alarms} alarms
+                      {user.folders} groups, {user.alarms} alarms
                     </td>
                     <td>
                       <button
@@ -169,8 +169,8 @@ export function AdminPage({ currentUserId }: { currentUserId: string }) {
           <thead>
             <tr>
               <th scope="col">Tier</th>
-              <th scope="col">Folders</th>
-              <th scope="col">Alarms per folder</th>
+              <th scope="col">Groups</th>
+              <th scope="col">Alarms per group</th>
               <th scope="col">Repeat in a day</th>
               <th scope="col">Shortest interval</th>
               <th scope="col">Generated speech</th>

@@ -347,14 +347,14 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
         {step === 1 ? (
           <>
             <div className="field">
-              <label htmlFor="alarm-folder">Folder</label>
+              <label htmlFor="alarm-folder">Group</label>
               <select
                 id="alarm-folder"
                 value={form.folderId}
                 onChange={(event) => update({ folderId: event.target.value })}
                 data-testid="alarm-folder-select"
               >
-                <option value="">No folder yet — sort it later</option>
+                <option value="">No group yet — sort it later</option>
                 {(folders.data?.items ?? []).map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.name}
@@ -362,8 +362,8 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
                 ))}
               </select>
               <p className="field-hint">
-                An alarm with no folder still works. It waits in Unfiled until you
-                decide where it belongs.
+                An alarm with no group still works. It sits on the groups page
+                until you decide where it belongs.
               </p>
             </div>
 
