@@ -18,6 +18,8 @@ export function FoldersPage() {
   const toast = useToast();
   const [name, setName] = useState('');
   const [creating, setCreating] = useState(false);
+  const [renaming, setRenaming] = useState<Folder | undefined>();
+  const [renamed, setRenamed] = useState('');
   const [search, setSearch] = useState('');
   const [pendingDelete, setPendingDelete] = useState<Folder | undefined>();
 
@@ -62,6 +64,18 @@ export function FoldersPage() {
     },
   });
 
+  const renameFolder = useMutation({
+    mutationFn: (next: { id: string; name: string }) =>
+      api.patch<Folder>(`/folders/${next.id}`, { name: next.name }),
+    onSuccess: async (folder) => {
+      setRenaming(undefined);
+      await queryClient.invalidateQueries({ queryKey: ['folders'] });
+      // The group's name is printed beside every search result.
+      void queryClient.invalidateQueries({ queryKey: ['alarms'] });
+      toast.push('success', `Renamed to "${folder.name}".`);
+    },
+  });
+
   const deleteFolder = useMutation({
     // R-10: the confirmation flag is part of the request, not a UI-only concept.
     mutationFn: (folder: Folder) => api.delete<void>(`/folders/${folder.id}?confirm=true`),
@@ -80,6 +94,16 @@ export function FoldersPage() {
 
   const createError = createFolder.error instanceof ApiError ? createFolder.error : undefined;
   const nameError = createError?.fieldError('name') ?? createError?.message;
+
+  const renameError = renameFolder.error instanceof ApiError ? renameFolder.error : undefined;
+  const renameNameError = renameError?.fieldError('name') ?? renameError?.message;
+
+  /** Opens on the name it already has, so a small correction stays small. */
+  function openRename(folder: Folder) {
+    setRenaming(folder);
+    setRenamed(folder.name);
+    renameFolder.reset();
+  }
 
   /** Opens clean: a name abandoned last time is not an answer to this time. */
   function openCreate(open: boolean) {
@@ -252,6 +276,15 @@ export function FoldersPage() {
                     </span>
                     <button
                       type="button"
+                      className="button"
+                      onClick={() => openRename(folder)}
+                      aria-label={`Rename group ${folder.name}`}
+                      data-testid="folder-rename-button"
+                    >
+                      Rename
+                    </button>
+                    <button
+                      type="button"
                       className="button button-danger"
                       onClick={() => setPendingDelete(folder)}
                       aria-label={`Delete group ${folder.name}`}
@@ -271,6 +304,24 @@ export function FoldersPage() {
           </section>
         </>
       )}
+
+      <NameDialog
+        open={renaming !== undefined}
+        onOpenChange={(open) => {
+          if (!open) setRenaming(undefined);
+        }}
+        title="Rename group"
+        label="Group name"
+        value={renamed}
+        onValueChange={setRenamed}
+        onSubmit={() => {
+          if (renaming) renameFolder.mutate({ id: renaming.id, name: renamed });
+        }}
+        submitLabel="Save name"
+        busy={renameFolder.isPending}
+        error={renameNameError}
+        testId="folder-rename-dialog"
+      />
 
       <NameDialog
         open={creating}
