@@ -574,24 +574,6 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
         {step === 2 ? (
           <>
             <div className="field">
-              <label htmlFor="alarm-time">Time of day</label>
-              <input
-                id="alarm-time"
-                type="time"
-                value={form.timeOfDay}
-                onChange={(event) => update({ timeOfDay: event.target.value })}
-                aria-invalid={fieldError('timeOfDay') ? true : undefined}
-                aria-describedby={fieldError('timeOfDay') ? 'alarm-time-error' : undefined}
-                data-testid="alarm-time-input"
-              />
-              {fieldError('timeOfDay') ? (
-                <p id="alarm-time-error" className="field-error" data-testid="alarm-time-error">
-                  {fieldError('timeOfDay')}
-                </p>
-              ) : null}
-            </div>
-
-            <div className="field">
               <label htmlFor="alarm-timezone">Time zone</label>
               <input
                 id="alarm-timezone"
@@ -610,6 +592,24 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
               {fieldError('timezone') ? (
                 <p id="alarm-timezone-error" className="field-error" data-testid="alarm-timezone-error">
                   {fieldError('timezone')}
+                </p>
+              ) : null}
+            </div>
+
+            <div className="field">
+              <label htmlFor="alarm-time">Time of day</label>
+              <input
+                id="alarm-time"
+                type="time"
+                value={form.timeOfDay}
+                onChange={(event) => update({ timeOfDay: event.target.value })}
+                aria-invalid={fieldError('timeOfDay') ? true : undefined}
+                aria-describedby={fieldError('timeOfDay') ? 'alarm-time-error' : undefined}
+                data-testid="alarm-time-input"
+              />
+              {fieldError('timeOfDay') ? (
+                <p id="alarm-time-error" className="field-error" data-testid="alarm-time-error">
+                  {fieldError('timeOfDay')}
                 </p>
               ) : null}
             </div>
