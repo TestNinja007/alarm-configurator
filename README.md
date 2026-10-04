@@ -584,7 +584,7 @@ All deterministic: no random delays, no random failures.
 | A-05 | Enabling or disabling a row updates optimistically, then reconciles with the server. | done |
 | A-06 | Name search is debounced by 300 ms. | done |
 | A-07 | Toasts appear on success and auto-dismiss after 5 seconds. | done |
-| A-08 | An alarm cannot be created before a folder exists; the conflicts panel and bulk enable/disable appear only once a folder holds two or more alarms. | done |
+| A-08 | The conflicts panel and bulk enable/disable appear only once a group holds two or more alarms. An alarm no longer needs a group to exist [see **Alarms without a group**], so the old "create a group first" dependency is gone. | done |
 
 ## Test hooks
 
@@ -596,7 +596,7 @@ OpenAPI document.
 | --- | --- |
 | T-01 | `POST /test/reset` restores a seed profile. Measured at roughly 250 ms locally, well inside the 3-second budget. It also clears the sign-in rate limiter, which is in-process state a reset would otherwise leave behind. |
 | T-02 | `PUT /test/clock` pins or releases the server clock. |
-| T-03 | `POST /test/users` creates a throwaway account with no folders, so the A-08 setup dependency can be exercised from nothing. Removed by the next reset. |
+| T-03 | `POST /test/users` creates a throwaway account with no groups and no alarms, so an empty account can be exercised from nothing. Removed by the next reset. |
 | T-04 | `GET /health` reports version, database connectivity, whether test support is on, and the current clock state. Always available. |
 
 ### Pin the clock before signing in
@@ -663,6 +663,6 @@ type-check, build, unit tests — so the code can be validated without a remote.
 ## Tests in this repository
 
 Unit tests for the recurrence engine only, under
-`src/api/src/recurrence/engine.test.ts`, run with `npm test`. 21 tests covering
+`src/api/src/recurrence/engine.test.ts`, run with `npm test`. 30 tests covering
 R-04 through R-08. There is deliberately no end-to-end,
 API, UI or performance suite here — that is the separate framework's job.
