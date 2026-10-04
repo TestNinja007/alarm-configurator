@@ -45,10 +45,11 @@ export function RegisterPage() {
   return (
     <main className="page page-narrow" data-testid="register-page">
       <header className="auth-brand" data-testid="auth-brand">
-        <div className="auth-lockup">
+        {/* The only way back out of a form you decided not to fill in. */}
+        <Link className="auth-lockup auth-lockup-link" to="/" data-testid="auth-home-link">
           <Logo size={44} />
           <h1 className="auth-wordmark">Nudge</h1>
-        </div>
+        </Link>
         <p className="auth-tagline">Alarms that actually work with you.</p>
       </header>
 

@@ -146,6 +146,22 @@ body {
   justify-content: center;
 }
 
+/* A link, but it should read as the mark it already is. */
+.auth-lockup-link {
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--radius);
+}
+
+.auth-lockup-link:hover .auth-wordmark {
+  color: var(--accent);
+}
+
+.auth-lockup-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 6px;
+}
+
 .logo {
   color: var(--accent);
   flex: 0 0 auto;
