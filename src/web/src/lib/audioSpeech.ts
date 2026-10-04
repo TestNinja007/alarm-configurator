@@ -1,5 +1,5 @@
 import { api } from '../api/client';
-import { speak, type VoicePreference } from './speech';
+import { speak, stopSpeaking, type VoicePreference } from './speech';
 
 /**
  * Playing server-generated speech, falling back to the browser's own voice.
@@ -88,6 +88,24 @@ export async function say(
 
   speak(trimmed, voice);
   return 'browser';
+}
+
+/**
+ * Stops anything currently being said, by either route.
+ *
+ * Both halves are needed: the server voice plays through an <audio> element
+ * and the fallback goes through speechSynthesis, and at any moment it could
+ * be either.
+ */
+export function stopSaying(): void {
+  stopSpeaking();
+  if (player) {
+    player.pause();
+    // Dropping the source as well, so a paused element cannot be resumed by
+    // anything that still holds a reference to it.
+    player.removeAttribute('src');
+    player.load();
+  }
 }
 
 /** Warms the cache so an alarm does not wait on generation when it fires. */

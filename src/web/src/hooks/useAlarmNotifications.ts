@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
-import { say } from '../lib/audioSpeech';
+import { say, stopSaying } from '../lib/audioSpeech';
 import { speechFor } from '../lib/speechTemplate';
 import type { UpcomingList, UpcomingOccurrence } from '../api/types';
 
@@ -131,6 +131,23 @@ export function useAlarmNotifications() {
   useEffect(() => {
     if (!active || !upcoming.data) return;
 
+    /*
+     * Disarm anything the server has stopped offering before arming
+     * anything new.
+     *
+     * The poll returns only enabled alarms, so an alarm that was switched
+     * off, deleted or rescheduled simply stops appearing - but its timers
+     * were already set and would still fire. At a ten-second repeat the
+     * lookahead holds a dozen of them, so disabling an alarm left it going
+     * off for another two minutes.
+     */
+    const live = new Set(upcoming.data.items.map(keyFor));
+    for (const [key, timer] of timers.current) {
+      if (live.has(key)) continue;
+      window.clearTimeout(timer);
+      timers.current.delete(key);
+    }
+
     for (const occurrence of upcoming.data.items) {
       const key = keyFor(occurrence);
       if (fired.current.has(key) || timers.current.has(key)) continue;
@@ -163,6 +180,27 @@ export function useAlarmNotifications() {
       pending.clear();
     };
   }, []);
+
+  /*
+   * Go quiet when the page goes away.
+   *
+   * React's cleanup is not guaranteed to run when a tab is closed, and a
+   * speechSynthesis utterance already handed to the browser can carry on
+   * talking after the page that queued it has gone. pagehide fires in cases
+   * unload does not, including a tab being discarded on mobile.
+   */
+  useEffect(() => {
+    window.addEventListener('pagehide', stopSaying);
+    return () => {
+      window.removeEventListener('pagehide', stopSaying);
+      stopSaying();
+    };
+  }, []);
+
+  // Switching notifications off stops the sentence in progress too.
+  useEffect(() => {
+    if (!active) stopSaying();
+  }, [active]);
 
   const request = useCallback(async () => {
     if (!('Notification' in window)) return;

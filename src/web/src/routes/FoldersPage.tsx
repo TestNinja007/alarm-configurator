@@ -65,6 +65,9 @@ export function FoldersPage() {
     onSuccess: async (_result, folder) => {
       setPendingDelete(undefined);
       await queryClient.invalidateQueries({ queryKey: ['folders'] });
+      await queryClient.invalidateQueries({ queryKey: ['alarms'] });
+      // Its alarms went with it, so the scheduler must stop expecting them.
+      void queryClient.invalidateQueries({ queryKey: ['upcoming'] });
       toast.push('success', `Group "${folder.name}" deleted.`);
     },
     onError: (error) => {

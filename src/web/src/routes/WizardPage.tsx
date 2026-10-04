@@ -235,6 +235,7 @@ export function WizardPage({ mode }: { mode: 'create' | 'edit' }) {
       if (mode === 'create') await discardDraft.mutateAsync();
       await queryClient.invalidateQueries({ queryKey: ['alarms'] });
       await queryClient.invalidateQueries({ queryKey: ['conflicts', alarm.folderId] });
+      void queryClient.invalidateQueries({ queryKey: ['upcoming'] });
       toast.push('success', `"${alarm.name}" ${mode === 'create' ? 'created' : 'saved'}.`);
       void navigate(`/folders/${folderParam(alarm.folderId)}`);
     },

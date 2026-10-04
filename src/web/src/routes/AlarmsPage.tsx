@@ -139,6 +139,7 @@ export function AlarmsPage() {
       // Enabling can create an R-08 collision, so the panel and the counts are
       // both stale once a toggle lands.
       void queryClient.invalidateQueries({ queryKey: ['conflicts', folderId] });
+      void queryClient.invalidateQueries({ queryKey: ['upcoming'] });
       void queryClient.invalidateQueries({ queryKey: ['folder', folderId] });
       void queryClient.invalidateQueries({ queryKey: ['folder-summary', folderId] });
     },
@@ -152,6 +153,7 @@ export function AlarmsPage() {
       setSelected(new Set());
       await queryClient.invalidateQueries({ queryKey: ['alarms', folderId] });
       await queryClient.invalidateQueries({ queryKey: ['conflicts', folderId] });
+      void queryClient.invalidateQueries({ queryKey: ['upcoming'] });
       await queryClient.invalidateQueries({ queryKey: ['folder-summary', folderId] });
       toast.push('success', `${count} alarm${count === 1 ? '' : 's'} ${enabled ? 'enabled' : 'disabled'}.`);
     },
@@ -166,6 +168,7 @@ export function AlarmsPage() {
       setPendingDelete(undefined);
       await queryClient.invalidateQueries({ queryKey: ['alarms', folderId] });
       await queryClient.invalidateQueries({ queryKey: ['conflicts', folderId] });
+      void queryClient.invalidateQueries({ queryKey: ['upcoming'] });
       await queryClient.invalidateQueries({ queryKey: ['folder', folderId] });
       await queryClient.invalidateQueries({ queryKey: ['folder-summary', folderId] });
       toast.push('success', `"${alarm.name}" deleted.`);
