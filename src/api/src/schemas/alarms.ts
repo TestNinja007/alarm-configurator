@@ -32,6 +32,15 @@ export const DateOnlySchema = Type.String({
 const NullableString = (options: { maxLength: number }) =>
   Type.Unsafe<string | null>({ type: ['string', 'null'], ...options });
 
+/**
+ * The same trap, one type along. A union of integer and null let Ajv coerce
+ * an out-of-range 0 into null rather than rejecting it, so asking to end
+ * after zero occurrences produced an alarm that never ends - accepted with a
+ * 201, meaning something other than what was asked for.
+ */
+const NullableInteger = (options: { minimum: number; maximum: number }) =>
+  Type.Unsafe<number | null>({ type: ['integer', 'null'], ...options });
+
 export const AlarmSchema = Type.Object(
   {
     id: UuidSchema,
@@ -73,9 +82,7 @@ const scheduleProperties = {
   endDate: Type.Optional(Type.Union([DateOnlySchema, Type.Null()])),
   /** An optional time on endDate, ending the series at a precise instant. */
   endTime: Type.Optional(Type.Union([TimeOfDaySchema, Type.Null()])),
-  endAfterOccurrences: Type.Optional(
-    Type.Union([Type.Integer({ minimum: 1, maximum: 1000 }), Type.Null()]),
-  ),
+  endAfterOccurrences: Type.Optional(NullableInteger({ minimum: 1, maximum: 1000 })),
   /**
    * Spoken aloud when the alarm fires, by the browser's own speech
    * synthesis. The voice is a preference rather than a named voice, because
@@ -94,7 +101,7 @@ const scheduleProperties = {
    * endTimeOfDay closes the window each day; endDate ends the series.
    */
   endTimeOfDay: Type.Optional(Type.Union([TimeOfDaySchema, Type.Null()])),
-  repeatEvery: Type.Optional(Type.Union([Type.Integer({ minimum: 1, maximum: 1440 }), Type.Null()])),
+  repeatEvery: Type.Optional(NullableInteger({ minimum: 1, maximum: 1440 })),
   repeatUnit: Type.Optional(
     Type.Union([
       Type.Literal('seconds'),
