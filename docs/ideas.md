@@ -87,3 +87,38 @@ last. ElevenLabs exposes `stability` and `style` per request, so intensity could
 ramp with `indexInDay`. The browser's own voices have no equivalent, so this
 would only work with a provider configured, and would need to degrade quietly
 without one.
+
+## Accessibility as a product feature
+
+Not the same thing as accessibility testing, which checks that the existing
+interface can be used by everyone. This is about building for it deliberately.
+
+An alarm app has an unusual advantage here: its primary output is already
+**spoken**. A product whose core interaction is "a voice tells you something"
+is most of the way to being usable without sight, which is not true of most
+software. The gap is the configuration side, not the alarm side.
+
+What that would mean concretely:
+
+- A high-contrast theme, and one that respects `prefers-contrast`.
+- Larger type and spacing as a setting rather than a browser zoom.
+- Colour never carrying meaning on its own — the conflict warning and the
+  disabled state both lean on colour today.
+- The whole create-an-alarm flow operable by keyboard end to end, and announced
+  sensibly by a screen reader.
+- Possibly: the application reading its own interface aloud, reusing the speech
+  provider it already has.
+
+The last one is the interesting one, because the machinery exists. Nothing else
+in the backlog reuses so much of what is already built.
+
+## A planner that writes alarms from a prompt
+
+Mentioned alongside the natural-language idea above: a chat surface where
+someone describes a routine — "remind me to stretch every fifty minutes while
+I'm working" — and gets the alarms created for them.
+
+Same caveats as the natural-language planner: a model call, an API key, a cost
+per request, and output that is not deterministic. It would want the same seam
+— a fake planner returning fixed alarms for fixed phrases — so the rest of the
+suite stays repeatable.
