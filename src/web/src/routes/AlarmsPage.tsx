@@ -201,7 +201,7 @@ export function AlarmsPage() {
     <main className="page" data-testid="alarms-page">
       <nav aria-label="Breadcrumb" className="breadcrumb">
         <Link to="/folders" data-testid="folders-back-link">
-          Alarm groups
+          Alarm Dashboard
         </Link>
         <span aria-hidden="true"> / </span>
         <span data-testid="alarms-folder-name">

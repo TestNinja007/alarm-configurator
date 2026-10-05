@@ -5,6 +5,7 @@ import { ApiError, api } from '../api/client';
 import { describeRule, type Alarm, type AlarmList, type Folder } from '../api/types';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { NameDialog } from '../components/NameDialog';
+import { RowMenu } from '../components/RowMenu';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { useToast } from '../components/Toaster';
 
@@ -120,7 +121,7 @@ export function FoldersPage() {
   return (
     <main className="page" data-testid="folders-page">
       <header className="page-header">
-        <h1 className="page-title">Alarm groups</h1>
+        <h1 className="page-title">Alarm Dashboard</h1>
         {/*
           Straight to a new alarm without picking a group first. Deciding where
           something belongs before deciding what it is gets the order backwards
@@ -245,7 +246,7 @@ export function FoldersPage() {
             data-testid="folder-list-container"
           >
             <h2 id="folder-list-heading" className="card-title">
-              Your groups
+              Your Alarm Groups
             </h2>
 
             {folders.isLoading ? (
@@ -274,24 +275,23 @@ export function FoldersPage() {
                       {folder.alarmCount} alarm{folder.alarmCount === 1 ? '' : 's'},{' '}
                       {folder.enabledCount} enabled
                     </span>
-                    <button
-                      type="button"
-                      className="button"
-                      onClick={() => openRename(folder)}
-                      aria-label={`Rename group ${folder.name}`}
-                      data-testid="folder-rename-button"
-                    >
-                      Rename
-                    </button>
-                    <button
-                      type="button"
-                      className="button button-danger"
-                      onClick={() => setPendingDelete(folder)}
-                      aria-label={`Delete group ${folder.name}`}
-                      data-testid="folder-delete-button"
-                    >
-                      Delete
-                    </button>
+                    <RowMenu
+                      label={`Actions for ${folder.name}`}
+                      testId="folder-actions-button"
+                      items={[
+                        {
+                          label: 'Rename',
+                          onSelect: () => openRename(folder),
+                          testId: 'folder-rename-button',
+                        },
+                        {
+                          label: 'Delete',
+                          danger: true,
+                          onSelect: () => setPendingDelete(folder),
+                          testId: 'folder-delete-button',
+                        },
+                      ]}
+                    />
                   </li>
                 ))}
               </ul>
