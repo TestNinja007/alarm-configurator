@@ -1,10 +1,14 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { type FastifyInstance, type FastifyPluginCallback } from 'fastify';
 import cookie from '@fastify/cookie';
 import fastifyStatic from '@fastify/static';
 import swagger from '@fastify/swagger';
 import swaggerUi from '@fastify/swagger-ui';
+// Namespace import then .default: the package is CommonJS and, under
+// NodeNext, a default import of it resolves to the module object rather
+// than the plugin inside it.
+import * as fastifyMetrics from 'fastify-metrics';
 import { config } from './config.js';
 import { buildErrorBody, registerErrorHandler } from './http/errorHandler.js';
 import { registerRequestId } from './http/requestId.js';
@@ -85,6 +89,27 @@ export async function buildServer(): Promise<FastifyInstance> {
    * it, but a mutating call also needs the x-csrf-token header, which
    * POST /auth/login returns and this page will not add on its own.
    */
+  /*
+   * Prometheus metrics at /metrics: request counts, durations and status
+   * codes per route, plus the Node process itself - event loop lag, heap,
+   * handles.
+   *
+   * Event loop lag is the one that matters here. Password hashing is
+   * memory-hard by design and runs on a four-thread pool, so under
+   * concurrent sign-ins this process stalls in a way that request timings
+   * alone do not explain.
+   *
+   * Public, like the OpenAPI document. It exposes route names and timings,
+   * nothing about anybody's data.
+   */
+  await app.register(
+    // The plugin declares Fastify's default type provider; this instance
+    // uses TypeBox, which register() treats as incompatible even though
+    // nothing in the plugin depends on either.
+    fastifyMetrics.default as unknown as FastifyPluginCallback<{ endpoint: string }>,
+    { endpoint: '/metrics' },
+  );
+
   await app.register(swaggerUi, {
     routePrefix: '/docs',
     uiConfig: { docExpansion: 'list', deepLinking: true, displayRequestDuration: true },
