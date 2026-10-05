@@ -35,6 +35,22 @@ function sessionSecret(): string {
 export const config = {
   isProduction,
   databaseUrl: required('DATABASE_URL'),
+  /**
+   * Connections the pool will open, and how long a caller waits for one.
+   *
+   * Both were implicit, and the second one was absent entirely, which is what
+   * DEF-08 is: with no acquisition timeout a caller that cannot get a
+   * connection waits indefinitely rather than failing. Load testing measured
+   * fifty-second maximums on database-backed endpoints while every percentile
+   * threshold passed, and the functional suite then reproduced it at four
+   * parallel workers — a far lower bar than the load profile suggested.
+   *
+   * A caller that has waited five seconds for a connection has already lost.
+   * Telling it so converts a hang, which a client cannot act on, into an
+   * error, which it can.
+   */
+  databasePoolMax: integer('DATABASE_POOL_MAX', 10),
+  databaseAcquireTimeoutMs: integer('DATABASE_ACQUIRE_TIMEOUT_MS', 5_000),
   port: integer('PORT', 8080),
   host: process.env.HOST ?? '0.0.0.0',
   /**

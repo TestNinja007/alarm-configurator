@@ -9,7 +9,14 @@ pg.types.setTypeParser(pg.types.builtins.DATE, (value: string) => value);
 // Return BIGINT (count(*)) as a number; our counts are far below 2^53.
 pg.types.setTypeParser(pg.types.builtins.INT8, (value: string) => Number.parseInt(value, 10));
 
-export const pool = new pg.Pool({ connectionString: config.databaseUrl, max: 10 });
+export const pool = new pg.Pool({
+  connectionString: config.databaseUrl,
+  max: config.databasePoolMax,
+  // Without this, exhausting the pool makes callers queue with nothing to cut
+  // them off, and the symptom is a request that never answers rather than one
+  // that fails. See the note on these settings in config.ts.
+  connectionTimeoutMillis: config.databaseAcquireTimeoutMs,
+});
 
 export type QueryParam = string | number | boolean | null | Date | object | readonly string[];
 
