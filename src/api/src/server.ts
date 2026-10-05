@@ -4,6 +4,7 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import cookie from '@fastify/cookie';
 import fastifyStatic from '@fastify/static';
 import swagger from '@fastify/swagger';
+import swaggerUi from '@fastify/swagger-ui';
 import { config } from './config.js';
 import { buildErrorBody, registerErrorHandler } from './http/errorHandler.js';
 import { registerRequestId } from './http/requestId.js';
@@ -70,6 +71,24 @@ export async function buildServer(): Promise<FastifyInstance> {
         { name: 'test-support', description: 'Only present when TEST_SUPPORT=1' },
       ],
     },
+  });
+
+  /*
+   * A readable version of the same document, at /docs.
+   *
+   * Registered before the static handler, which claims every remaining path
+   * for the SPA. It exposes nothing the JSON did not: /openapi.json has
+   * always been public, and the test-support routes are absent from both
+   * when TEST_SUPPORT is off, because they are never registered at all.
+   *
+   * Try it out works against this origin and the session cookie goes with
+   * it, but a mutating call also needs the x-csrf-token header, which
+   * POST /auth/login returns and this page will not add on its own.
+   */
+  await app.register(swaggerUi, {
+    routePrefix: '/docs',
+    uiConfig: { docExpansion: 'list', deepLinking: true, displayRequestDuration: true },
+    staticCSP: true,
   });
 
   await app.register(

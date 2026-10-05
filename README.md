@@ -546,6 +546,11 @@ Every non-2xx response uses one envelope:
 | GET | `/me/upcoming` | Occurrences due soon across every enabled alarm, for the notification scheduler. |
 | GET | `/health` | Always mounted, whatever `TEST_SUPPORT` is set to (T-04). |
 | GET | `/openapi.json` | OpenAPI 3.1, generated from the schemas the server validates with. |
+
+The same document, readable, is at **`/docs`** -- outside the `/api/v1` prefix,
+because it is a page rather than an endpoint. **Try it out** sends the session
+cookie but not the `x-csrf-token` header, so a mutating call from that page
+needs the token from `POST /auth/login` pasting in by hand.
 | POST | `/test/reset` | T-01. `{ "profile": "empty" \| "demo" }`, default `demo`. |
 | GET/PUT | `/test/clock` | T-02. `{ "now": "..." }` pins it, `{ "mode": "system" }` releases it. |
 | POST | `/test/users` | T-03. Returns a throwaway account's credentials. |
