@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { say, stopSaying } from '../lib/audioSpeech';
@@ -76,12 +76,41 @@ function currentPermission(): NotificationPermissionState {
 
 export function useAlarmNotifications() {
   const [permission, setPermission] = useState<NotificationPermissionState>(currentPermission);
-  const [armed, setArmed] = useState(0);
   const [enabled, setEnabled] = useState(() => readStorage(ENABLED_STORAGE_KEY) === '1');
   const [lastFired, setLastFired] = useState<string | undefined>();
 
   const fired = useRef<Set<string>>(loadFired());
   const timers = useRef<Map<string, number>>(new Map());
+
+  /*
+   * How many timers are armed, read as an external store rather than mirrored
+   * into state.
+   *
+   * The ref is what the scheduler works with; this is the only way anything
+   * outside can tell that a reconciliation has happened. Without it, disarming
+   * is unobservable: a test can see that the server stopped offering an
+   * occurrence and that the row is switched off, and still have no way to know
+   * whether THIS browser has acted on it yet - which is the exact thing DEF-05
+   * got wrong and the exact thing a regression test for it has to wait for.
+   *
+   * It was a useState set at the end of the reconciling effect, which is a
+   * synchronous setState inside an effect: it re-rendered on every poll and
+   * react-hooks/set-state-in-effect rightly refused it. The map IS the external
+   * store, so it is subscribed to as one - and the count now only re-renders
+   * when it actually changes, which the previous version did not manage.
+   */
+  const armedListeners = useRef(new Set<() => void>());
+  const publishArmed = useCallback(() => {
+    for (const listener of armedListeners.current) listener();
+  }, []);
+  const armed = useSyncExternalStore(
+    useCallback((onChange: () => void) => {
+      armedListeners.current.add(onChange);
+      return () => armedListeners.current.delete(onChange);
+    }, []),
+    () => timers.current.size,
+    () => 0,
+  );
 
   const active = enabled && permission === 'granted';
 
@@ -160,33 +189,25 @@ export function useAlarmNotifications() {
       // late — fires immediately rather than being skipped.
       const timer = window.setTimeout(() => {
         timers.current.delete(key);
+        publishArmed();
         show(occurrence);
       }, Math.max(0, delay));
 
       timers.current.set(key, timer);
     }
 
-    /*
-     * How many timers are armed, as state rather than only as a ref.
-     *
-     * The ref is what the scheduler works with; this is the only way anything
-     * outside can tell that a reconciliation has happened. Without it,
-     * disarming is unobservable: a test can see that the server stopped
-     * offering an occurrence and that the row is switched off, and still have
-     * no way to know whether THIS browser has acted on it yet - which is the
-     * exact thing DEF-05 got wrong and the exact thing a regression test for
-     * it has to wait for.
-     */
-    setArmed(timers.current.size);
-  }, [active, upcoming.data, show]);
+    // Publish the new count; see the store above for why this is observable
+    // at all.
+    publishArmed();
+  }, [active, upcoming.data, show, publishArmed]);
 
   // Drop every pending timer when notifications are switched off.
   useEffect(() => {
     if (active) return;
     for (const timer of timers.current.values()) window.clearTimeout(timer);
     timers.current.clear();
-    setArmed(0);
-  }, [active]);
+    publishArmed();
+  }, [active, publishArmed]);
 
   useEffect(() => {
     const pending = timers.current;
