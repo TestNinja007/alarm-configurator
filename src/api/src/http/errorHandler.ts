@@ -54,6 +54,22 @@ export function buildErrorBody(
 export function registerErrorHandler(app: FastifyInstance): void {
   app.setErrorHandler((error: FastifyError, request: FastifyRequest, reply: FastifyReply) => {
     if (error instanceof AppError) {
+      /*
+       * A 503 says "try again", and Retry-After is the only part of that a
+       * client can act on without guessing. Logged as a warning too: an
+       * unavailable database is an operational event worth seeing in the
+       * logs, which the 500 it replaces was (the one thing that version got
+       * right).
+       */
+      if (error.code === 'service_unavailable') {
+        const after = Number(error.details?.retryAfter ?? 1);
+        reply.header('Retry-After', String(Number.isFinite(after) ? Math.max(1, after) : 1));
+        request.log.warn(
+          { err: error, requestId: request.requestId },
+          'Service unavailable, told the caller to retry',
+        );
+      }
+
       reply.status(error.statusCode).send(
         body(error.code, error.message, request.requestId, {
           fields: error.fields,

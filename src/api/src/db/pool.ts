@@ -1,5 +1,6 @@
 import pg from 'pg';
 import { config } from '../config.js';
+import { translateAcquisitionFailure } from './acquisitionFailure.js';
 
 // Return DATE columns as plain YYYY-MM-DD strings rather than JS Date objects.
 // A calendar date has no instant, and letting node-postgres build a Date from
@@ -20,11 +21,25 @@ export const pool = new pg.Pool({
 
 export type QueryParam = string | number | boolean | null | Date | object | readonly string[];
 
+/**
+ * Run a pool operation, converting an acquisition failure into a 503 at the
+ * point it happens rather than letting it reach the generic handler as a 500.
+ *
+ * The recognition lives in acquisitionFailure.ts, which is where it is tested.
+ */
+async function translating<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    throw translateAcquisitionFailure(error);
+  }
+}
+
 export async function query<T extends pg.QueryResultRow = pg.QueryResultRow>(
   text: string,
   params: QueryParam[] = [],
 ): Promise<pg.QueryResult<T>> {
-  return pool.query<T>(text, params as unknown[]);
+  return translating(() => pool.query<T>(text, params as unknown[]));
 }
 
 /** Returns the first row, or undefined when the query matched nothing. */
@@ -37,7 +52,9 @@ export async function queryOne<T extends pg.QueryResultRow = pg.QueryResultRow>(
 }
 
 export async function withTransaction<T>(fn: (client: pg.PoolClient) => Promise<T>): Promise<T> {
-  const client = await pool.connect();
+  // Only the acquisition is translated. Once a client is in hand, whatever the
+  // transaction body throws is the caller's own error and travels untouched.
+  const client = await translating(() => pool.connect());
   try {
     await client.query('BEGIN');
     const result = await fn(client);

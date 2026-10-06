@@ -15,6 +15,7 @@ export type ErrorCode =
   | 'conflict'
   | 'rate_limited'
   | 'malformed_request'
+  | 'service_unavailable'
   | 'internal';
 
 export const statusForCode: Record<ErrorCode, number> = {
@@ -24,6 +25,7 @@ export const statusForCode: Record<ErrorCode, number> = {
   conflict: 409,
   rate_limited: 429,
   malformed_request: 400,
+  service_unavailable: 503,
   internal: 500,
 };
 
@@ -62,6 +64,22 @@ export const unauthenticated = (message = 'Authentication required.') =>
 
 export const validationError = (fields: FieldError[], message = 'The request failed validation.') =>
   new AppError('validation_error', message, { fields });
+
+/**
+ * The server cannot serve this request right now, but the request was fine.
+ *
+ * 503 rather than 500 because the two want opposite responses from a caller:
+ * a 500 means stop and look at what you sent, a 503 means the same request
+ * may well work shortly. `retryAfter` is carried in seconds and becomes a
+ * Retry-After header, so a client does not have to guess.
+ */
+export const serviceUnavailable = (
+  message: string,
+  options: { retryAfter?: number; details?: Record<string, unknown> } = {},
+) =>
+  new AppError('service_unavailable', message, {
+    details: { ...options.details, retryAfter: options.retryAfter ?? 1 },
+  });
 
 export const conflict = (
   message: string,
