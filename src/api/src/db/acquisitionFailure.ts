@@ -50,8 +50,26 @@ export function isAcquisitionFailure(error: unknown): boolean {
  */
 export function translateAcquisitionFailure(error: unknown): unknown {
   if (!isAcquisitionFailure(error)) return error;
+  /*
+   * The original error is carried as `cause` because WHICH message it was is
+   * the whole question for DEF-08:
+   *
+   *   "timeout exceeded when trying to connect"  the pool ran out and the
+   *                                              queue drained - a sizing story
+   *   "Connection terminated unexpectedly"       an established connection
+   *                                              died - an interference story
+   *
+   * Those point at different causes. The first version of this threw the
+   * distinction away at exactly the moment it mattered, which a live
+   * reproduction showed within the hour.
+   *
+   * It goes on `cause` and not in `details`, because details is serialised
+   * into the response and an internal database message is not the caller's
+   * business.
+   */
   return serviceUnavailable('The database is not accepting connections right now.', {
     retryAfter: 1,
     details: { cause: 'pool_acquisition_timeout' },
+    cause: error,
   });
 }

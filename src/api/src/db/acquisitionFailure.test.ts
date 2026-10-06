@@ -41,6 +41,23 @@ describe('translateAcquisitionFailure', () => {
     expect((translated as AppError).code).toBe('service_unavailable');
   });
 
+  it('keeps the original message as cause, and out of the response', () => {
+    /*
+     * The distinction this preserves is the whole question for DEF-08: a
+     * drained queue and a connection that died point at different causes, and
+     * the first version of this translation discarded which one it was.
+     */
+    const original = new Error('Connection terminated unexpectedly');
+    const translated = unavailable(original) as AppError;
+
+    expect(translated.cause, 'the log needs to know which failure this was').toBe(original);
+
+    // And it stays out of details, which is serialised to the caller. An
+    // internal database message is not the caller's business.
+    expect(JSON.stringify(translated.details)).not.toContain('terminated');
+    expect(translated.details).toEqual({ cause: 'pool_acquisition_timeout', retryAfter: 1 });
+  });
+
   it('leaves a real query error alone, code and all', () => {
     // A unique violation is the clearest case: it has a code, it is the
     // caller's own doing, and 503 would be a lie that invites a retry.

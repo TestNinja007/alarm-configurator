@@ -64,8 +64,17 @@ export function registerErrorHandler(app: FastifyInstance): void {
       if (error.code === 'service_unavailable') {
         const after = Number(error.details?.retryAfter ?? 1);
         reply.header('Retry-After', String(Number.isFinite(after) ? Math.max(1, after) : 1));
+        const cause = error.cause;
         request.log.warn(
-          { err: error, requestId: request.requestId },
+          {
+            err: error,
+            requestId: request.requestId,
+            // Logged as its own field rather than relying on the error
+            // serialiser to walk `cause`: this string is the one that says
+            // which failure mode it was, and it must not be the thing that
+            // gets dropped.
+            underlying: cause instanceof Error ? cause.message : String(cause ?? ''),
+          },
           'Service unavailable, told the caller to retry',
         );
       }

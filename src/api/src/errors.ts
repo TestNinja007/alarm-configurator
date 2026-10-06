@@ -43,9 +43,18 @@ export class AppError extends Error {
   constructor(
     code: ErrorCode,
     message: string,
-    options: { fields?: FieldError[]; details?: Record<string, unknown> } = {},
+    options: {
+      fields?: FieldError[];
+      details?: Record<string, unknown>;
+      /*
+       * The error this one replaces, kept for the log and deliberately NOT
+       * for the response. `details` is serialised to the client, so an
+       * internal database message does not belong there.
+       */
+      cause?: unknown;
+    } = {},
   ) {
-    super(message);
+    super(message, options.cause === undefined ? undefined : { cause: options.cause });
     this.name = 'AppError';
     this.code = code;
     this.fields = options.fields;
@@ -75,10 +84,11 @@ export const validationError = (fields: FieldError[], message = 'The request fai
  */
 export const serviceUnavailable = (
   message: string,
-  options: { retryAfter?: number; details?: Record<string, unknown> } = {},
+  options: { retryAfter?: number; details?: Record<string, unknown>; cause?: unknown } = {},
 ) =>
   new AppError('service_unavailable', message, {
     details: { ...options.details, retryAfter: options.retryAfter ?? 1 },
+    cause: options.cause,
   });
 
 export const conflict = (
