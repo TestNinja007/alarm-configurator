@@ -145,6 +145,44 @@ restores everything.
 | R-10 | Deleting a folder deletes its alarms and requires `?confirm=true`; without it, 409 carrying the alarm count. | done |
 | R-11 | `timeOfDay` must be `HH:mm`, 00:00 to 23:59. `24:00` is rejected. | done |
 | R-12 | `timezone` must be a valid IANA name; anything else is 422. | done |
+| R-13 | Registering an address that already has an account is refused with 409 and a field error on `email`. | done |
+| R-14 | A registration password shorter than 10 characters, or longer than 200, is rejected with 422 on `password`. | done |
+| R-15 | A verification code expires 15 minutes after it is issued. An expired code is refused and the account stays unverified. | done |
+| R-16 | A wrong verification code costs one of five attempts. After the fifth, further codes are refused outright until a new one is issued, and the account stays unverified. | done |
+| R-17 | Changing or resetting a password ends every other session the account had. The client that made the change stays signed in. | done |
+| R-18 | Failed sign-ins are limited to 10 per 15-minute window. The eleventh is refused as `rate_limited` rather than as a wrong password, and the limiter is consumed before the account is looked up, so it cannot be used to discover which addresses exist. | done |
+| R-19 | Deleting an account removes the account and every row belonging to it — its alarms, its groups, its sessions. It can no longer sign in. | done |
+| R-20 | An alarm may exist with no group. Ungrouped alarms are listed at the top level rather than inside a group, and can be moved into a group and back out again. | done |
+| R-21 | Alarm names are unique among a user's ungrouped alarms, case-insensitively after trimming; violations are 409. Ungrouped alarms are one namespace, separate from each group's. | done |
+| R-22 | Group names are unique per account, case-insensitively after trimming. Creating a duplicate is refused with 409 and a field error on `name`. | done |
+| R-23 | Renaming a group to a name already in use is refused with 409 and the original name is unchanged. | done |
+| R-24 | A spoken message is optional and at most 200 characters. A voice chosen with no message is refused, and a whitespace-only message is refused — blank is not the same as absent. | done |
+| R-25 | Every browser engine resolves some voice for a spoken alarm. Which voice differs between engines and is not asserted; failing to speak at all is. | done |
+| R-26 | An alarm repeating within a day may carry a closing message. Earlier occurrences speak the ordinary message and the day's final occurrence speaks the closing one. A closing message with no ordinary message is refused. | done |
+| R-27 | A self-destructing alarm removes itself once it has no occurrence left. It is swept when the list is read, not by a scheduler, so it disappears on the next read after its last occurrence and not before. | done |
+| R-28 | A disabled alarm leaves the upcoming feed immediately, raises no notification and speaks nothing. Re-enabling restores it. | done |
+| R-29 | A registered and verified user who supplies the correct email and password is signed in and receives a session. | done |
+| R-30 | Registration with an unused address creates an unverified account and issues a six-digit code. Supplying that code verifies the account and signs the user in. | done |
+| R-31 | A signed-in user can create an alarm with a name, a time, a timezone, a start date and a recurrence rule. It appears in their list and in the occurrence preview. | done |
+| R-32 | An enabled alarm raises a browser notification at each occurrence and speaks its message, for as long as the application is open. | done |
+| R-33 | A group can be created, renamed and deleted. An alarm can be moved between groups, into a group from none, and out of a group to none. | done |
+| R-34 | An alarm can be edited and deleted by its owner, and only by its owner. | done |
+
+R-13 to R-28 were derived from the application's behaviour while the test cases
+were written, and carried only as numbers for a fortnight — cited by the cases
+and defined nowhere, which is [DEF-17] in the test framework's register. They
+are written out here because this table is the specification the suite is
+written against, and sixteen requirements with an identifier and no sentence
+cannot be traced to anything.
+
+R-29 to R-34 exist because mapping the cases to requirements showed R-01 to
+R-28 were overwhelmingly about **refusal** — what is rejected, with which
+status and which field error. Almost nothing stated the plain capability: that
+a registered user can sign in, that an alarm can be created, that it fires. A
+requirement set made only of edge cases describes a product nobody can use
+correctly.
+
+[DEF-17]: https://github.com/TestNinja007/alarm-test-framework/blob/main/docs/defects/README.md#def-17
 
 ### Ending a series
 
