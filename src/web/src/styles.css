@@ -326,8 +326,14 @@ body {
    * grow to fill the card, which pushed the inputs apart with great voids of
    * nothing between them. Growing is only wanted in the horizontal containers
    * below, which ask for it themselves.
+   *
+   * Shrink stays at 1, though. It was 0 — which also stops the field getting
+   * SMALLER than its content, so inside the speech fieldset the input kept its
+   * intrinsic 546px and the whole page scrolled sideways at phone width. Not
+   * growing and not shrinking are different wishes and this rule only wanted
+   * the first.
    */
-  flex: 0 0 auto;
+  flex: 0 1 auto;
 }
 
 .form-inline .field,
@@ -343,6 +349,19 @@ body {
 
 .field input,
 .field select {
+  /*
+   * Fill the field rather than taking an intrinsic width.
+   *
+   * Without this an input is as wide as its default size attribute makes it,
+   * which at desktop width fits inside the card and looks deliberate, and at
+   * phone width is 546px inside a 390px viewport - so the page scrolls
+   * sideways. min-width:0 is what lets it shrink at all inside a flex field;
+   * on the fieldset it is the long-standing rule that a fieldset will not go
+   * below its min-content width unless told it may.
+   */
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   padding: 8px 10px;
   font: inherit;
   color: inherit;
@@ -820,6 +839,7 @@ a:focus-visible {
 }
 
 .fieldset {
+  min-width: 0;
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
