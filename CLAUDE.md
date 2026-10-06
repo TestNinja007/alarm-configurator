@@ -58,6 +58,27 @@ Running locally for the test framework:
 TEST_SUPPORT=1 REGISTRATION_OPEN=1 npm start --workspace @alarm/api
 ```
 
+## Where things stand
+
+*Last updated 6 October 2026. Update this when it stops being true.*
+
+The application is covered by two test stacks in the
+[alarm-test-framework](https://github.com/TestNinja007/alarm-test-framework)
+repository — 78 Playwright specs across three engines and 62 pytest tests
+against the database — plus 38 unit tests here. CI is green on both.
+
+**22 defects found, 20 fixed, 1 open, 1 by design.** The open one is DEF-08:
+multi-second maxima on database-backed endpoints under load, cause not
+established. Its symptoms reach this repository as pool acquisition failures,
+which now answer 503 with `Retry-After` rather than an unhandled 500 — correct
+reporting of a fault, which is not a fix for it.
+
+One thing waiting on a human rather than on code: **verification and reset
+codes are stored as issued, not hashed** (`src/api/src/auth/verification.ts`,
+`passwordReset.ts`). No documented rule says otherwise, so it is not a defect;
+it should be a decision. The reasoning both ways is in the test that pins the
+current behaviour.
+
 ## Conventions that are easy to get wrong
 
 **Every non-2xx response uses one envelope**, built from `AppError`:
