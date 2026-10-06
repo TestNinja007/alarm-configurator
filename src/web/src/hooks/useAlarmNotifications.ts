@@ -76,6 +76,7 @@ function currentPermission(): NotificationPermissionState {
 
 export function useAlarmNotifications() {
   const [permission, setPermission] = useState<NotificationPermissionState>(currentPermission);
+  const [armed, setArmed] = useState(0);
   const [enabled, setEnabled] = useState(() => readStorage(ENABLED_STORAGE_KEY) === '1');
   const [lastFired, setLastFired] = useState<string | undefined>();
 
@@ -164,6 +165,19 @@ export function useAlarmNotifications() {
 
       timers.current.set(key, timer);
     }
+
+    /*
+     * How many timers are armed, as state rather than only as a ref.
+     *
+     * The ref is what the scheduler works with; this is the only way anything
+     * outside can tell that a reconciliation has happened. Without it,
+     * disarming is unobservable: a test can see that the server stopped
+     * offering an occurrence and that the row is switched off, and still have
+     * no way to know whether THIS browser has acted on it yet - which is the
+     * exact thing DEF-05 got wrong and the exact thing a regression test for
+     * it has to wait for.
+     */
+    setArmed(timers.current.size);
   }, [active, upcoming.data, show]);
 
   // Drop every pending timer when notifications are switched off.
@@ -171,6 +185,7 @@ export function useAlarmNotifications() {
     if (active) return;
     for (const timer of timers.current.values()) window.clearTimeout(timer);
     timers.current.clear();
+    setArmed(0);
   }, [active]);
 
   useEffect(() => {
@@ -234,6 +249,9 @@ export function useAlarmNotifications() {
   }, []);
 
   return {
+    /** Timers currently armed. Exposed so reconciliation is observable. */
+    armed,
+
     permission,
     enabled,
     active,

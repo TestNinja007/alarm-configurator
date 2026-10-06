@@ -158,8 +158,18 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       if (!config.registrationOpen) throw notFound('Route');
 
       const email = request.body.email.trim();
-      const row = await queryOne<{ id: string; email: string; name: string; email_verified_at: Date | null }>(
-        `SELECT id, email, name, email_verified_at
+      const row = await queryOne<{
+        id: string;
+        email: string;
+        name: string;
+        email_verified_at: Date | null;
+        role: 'user' | 'admin';
+        tier: 'basic' | 'regular' | 'advanced';
+      }>(
+        // role and tier are selected because the response is a SessionSchema,
+        // which requires them. Leaving them out does not fail validation on
+        // the way in -- it fails serialisation on the way out, as a 500.
+        `SELECT id, email, name, email_verified_at, role, tier
            FROM users WHERE lower(btrim(email)) = lower(btrim($1))`,
         [email],
       );
@@ -208,7 +218,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         .setCookie(CSRF_COOKIE, session.csrfToken, { ...cookieOptions, httpOnly: false });
 
       return {
-        user: { id: row.id, email: row.email, name: row.name },
+        user: { id: row.id, email: row.email, name: row.name, role: row.role, tier: row.tier },
         csrfToken: session.csrfToken,
       };
     },
@@ -343,8 +353,14 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const email = request.body.email.trim();
 
-      const row = await queryOne<{ id: string; email: string; name: string }>(
-        'SELECT id, email, name FROM users WHERE lower(btrim(email)) = lower(btrim($1))',
+      const row = await queryOne<{
+        id: string;
+        email: string;
+        name: string;
+        role: 'user' | 'admin';
+        tier: 'basic' | 'regular' | 'advanced';
+      }>(
+        'SELECT id, email, name, role, tier FROM users WHERE lower(btrim(email)) = lower(btrim($1))',
         [email],
       );
 
@@ -391,7 +407,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         .setCookie(CSRF_COOKIE, session.csrfToken, { ...cookieOptions, httpOnly: false });
 
       return {
-        user: { id: row.id, email: row.email, name: row.name },
+        user: { id: row.id, email: row.email, name: row.name, role: row.role, tier: row.tier },
         csrfToken: session.csrfToken,
       };
     },

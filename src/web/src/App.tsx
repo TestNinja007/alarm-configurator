@@ -4,7 +4,7 @@ import { ApiError, api } from './api/client';
 import type { Session } from './api/types';
 import { DemoBanner } from './components/DemoBanner';
 import { Logo } from './components/Logo';
-import { NotificationProvider } from './components/NotificationProvider';
+import { NotificationProvider, useNotifications } from './components/NotificationProvider';
 import { AdminPage } from './routes/AdminPage';
 import { AlarmsPage } from './routes/AlarmsPage';
 import { FoldersPage } from './routes/FoldersPage';
@@ -30,6 +30,7 @@ function useSession() {
 function TopBar({ session }: { session: Session }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const notifications = useNotifications();
 
   const logout = useMutation({
     mutationFn: () => api.post<void>('/auth/logout'),
@@ -42,7 +43,12 @@ function TopBar({ session }: { session: Session }) {
   });
 
   return (
-    <header className="topbar" data-testid="app-topbar">
+    /*
+     * data-armed-alarms: the scheduler runs app-wide, so its state is reported
+     * app-wide. A page that is not /settings has no other way to tell whether
+     * a change has reached this browser rather than only the server.
+     */
+    <header className="topbar" data-testid="app-topbar" data-armed-alarms={notifications.armed}>
       <span className="topbar-brand">
         <Logo size={22} />
         Nudge
