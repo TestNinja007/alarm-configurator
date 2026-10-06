@@ -32,8 +32,32 @@ export function LoginPage() {
 
   const error = login.error instanceof ApiError ? login.error : undefined;
 
+  /*
+   * A-02 is field-level and inline, client- AND server-side, and this form
+   * had neither half: an empty password was posted, refused, and reported in
+   * a banner that did not say which field was wrong.
+   *
+   * The client check exists so an empty field costs nothing — no round trip,
+   * and the error appears beside the thing to fix. It deliberately checks
+   * only emptiness: anything about whether the credentials are RIGHT belongs
+   * on the server, which answers an unknown address and a wrong password
+   * identically so the form cannot be used to discover which addresses exist.
+   */
+  const [missing, setMissing] = useState<{ email?: string; password?: string }>({});
+  const emailError = missing.email ?? error?.fieldError('email');
+  const passwordError = missing.password ?? error?.fieldError('password');
+  const generalError = error && !emailError && !passwordError ? error.message : undefined;
+
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    const blank = {
+      ...(email.trim() ? {} : { email: 'Enter your email address.' }),
+      ...(password ? {} : { password: 'Enter your password.' }),
+    };
+    setMissing(blank);
+    if (Object.keys(blank).length > 0) return;
+
     login.mutate({ email, password });
   }
 
@@ -51,9 +75,9 @@ export function LoginPage() {
       <form className="card form" onSubmit={onSubmit} noValidate data-testid="login-form">
         <h2 className="card-title">Sign in</h2>
 
-        {error ? (
+        {generalError ? (
           <p className="alert alert-error" role="alert" data-testid="login-error">
-            {error.message}
+            {generalError}
           </p>
         ) : null}
 
@@ -66,9 +90,15 @@ export function LoginPage() {
             autoComplete="username"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            aria-describedby={error ? 'login-error-text' : undefined}
+            aria-invalid={emailError ? true : undefined}
+            aria-describedby={emailError ? 'login-email-error' : undefined}
             data-testid="login-email-input"
           />
+          {emailError ? (
+            <p id="login-email-error" className="field-error" data-testid="login-email-error">
+              {emailError}
+            </p>
+          ) : null}
         </div>
 
         <PasswordField
@@ -78,13 +108,8 @@ export function LoginPage() {
           onChange={setPassword}
           autoComplete="current-password"
           testId="login-password-input"
+          error={passwordError}
         />
-
-        {error ? (
-          <p id="login-error-text" className="field-error">
-            {error.message}
-          </p>
-        ) : null}
 
         <button
           type="submit"
