@@ -1,6 +1,11 @@
 import { DateTime } from 'luxon';
 import type { FastifyInstance } from 'fastify';
 import { requireUser } from '../auth/guard.js';
+import {
+  hasFinished,
+  stepOccurrencesFor,
+  type SequenceSpec,
+} from '../sequences/engine.js';
 import { clock } from '../clock.js';
 import { query, queryOne } from '../db/pool.js';
 import { notFound, validationError } from '../errors.js';
@@ -62,6 +67,128 @@ async function assertOwnsFolder(userId: string, folderId: string): Promise<void>
     [folderId, userId],
   );
   if (!row) throw notFound('Group');
+}
+
+/**
+ * How far into the past the step window reaches, so a step that has only just
+ * come due still reaches the browser. Comfortably longer than one poll
+ * interval and far shorter than the shortest step a sequence may hold.
+ */
+const STEP_GRACE_MS = 30_000;
+
+/**
+ * Steps of every running sequence that fall in the window.
+ *
+ * This is also where a run ends on its own. The browser that pressed Activate
+ * may be closed long before the last step, so "is it still running" cannot be
+ * the browser's opinion - the server compares the elapsed time against the
+ * run's length and closes it. That is what makes a sequence deactivate itself
+ * once its steps are done, rather than staying active until somebody presses
+ * stop.
+ */
+async function upcomingSequenceSteps(userId: string, now: Date, until: Date) {
+  const runs = (
+    await query<{
+      run_id: string;
+      sequence_id: string;
+      started_at: Date;
+      name: string;
+      repeat_mode: 'once' | 'duration' | 'count';
+      repeat_seconds: number | null;
+      repeat_count: number | null;
+      closing_text: string | null;
+    }>(
+      `SELECT r.id AS run_id, r.sequence_id, r.started_at,
+              s.name, s.repeat_mode, s.repeat_seconds, s.repeat_count, s.closing_text
+         FROM sequence_runs r
+         JOIN sequences s ON s.id = r.sequence_id
+        WHERE r.user_id = $1 AND r.ended_at IS NULL`,
+      [userId],
+    )
+  ).rows;
+
+  if (runs.length === 0) return [];
+
+  const steps = (
+    await query<{
+      id: string;
+      sequence_id: string;
+      position: number;
+      kind: 'action' | 'pause';
+      label: string;
+      duration_seconds: number;
+      speech_text: string | null;
+    }>(
+      `SELECT id, sequence_id, position, kind, label, duration_seconds, speech_text
+         FROM sequence_steps WHERE sequence_id = ANY($1::uuid[]) ORDER BY position`,
+      [runs.map((r) => r.sequence_id)],
+    )
+  ).rows;
+
+  const found = [];
+  const finished: string[] = [];
+
+  for (const run of runs) {
+    const spec: SequenceSpec = {
+      id: run.sequence_id,
+      name: run.name,
+      repeatMode: run.repeat_mode,
+      repeatSeconds: run.repeat_seconds,
+      repeatCount: run.repeat_count,
+      closingText: run.closing_text,
+      steps: steps
+        .filter((step) => step.sequence_id === run.sequence_id)
+        .map((step) => ({
+          id: step.id,
+          position: step.position,
+          kind: step.kind,
+          label: step.label,
+          durationSeconds: step.duration_seconds,
+          speechText: step.speech_text,
+        })),
+    };
+
+    /*
+     * Closed only once the whole run is past, not once its last step has
+     * fired: a `duration` sequence ends at the window it was given, and the
+     * closing announcement lands exactly there.
+     */
+    if (hasFinished(spec, run.started_at, now)) {
+      finished.push(run.run_id);
+      continue;
+    }
+
+    /*
+     * The window reaches slightly into the past, which the alarm path does not
+     * need and this one does.
+     *
+     * A sequence's first step fires at the instant of activation, so by the
+     * time the browser polls - even a few milliseconds later - `now` is
+     * already past it and a window starting at `now` drops it. The symptom is
+     * the worst one this feature could have: you press Activate and nothing
+     * happens.
+     *
+     * The browser already fires anything already due immediately rather than
+     * skipping it, and it remembers what it has fired, so handing it a step
+     * from a moment ago is safe and is the only way it gets the first one.
+     */
+    const graceFrom = new Date(now.getTime() - STEP_GRACE_MS);
+
+    for (const step of stepOccurrencesFor(spec, run.started_at, { from: graceFrom, to: until })) {
+      found.push({ ...step, runId: run.run_id });
+    }
+  }
+
+  if (finished.length > 0) {
+    await query(
+      `UPDATE sequence_runs
+          SET ended_at = $2, ended_reason = 'completed'
+        WHERE id = ANY($1::uuid[]) AND ended_at IS NULL`,
+      [finished, now],
+    );
+  }
+
+  return found.sort((left, right) => left.utc.localeCompare(right.utc));
 }
 
 export async function occurrenceRoutes(app: FastifyInstance): Promise<void> {
@@ -157,7 +284,12 @@ export async function occurrenceRoutes(app: FastifyInstance): Promise<void> {
         .sort((left, right) => left.utc.localeCompare(right.utc))
         .slice(0, request.query.limit ?? 50);
 
-      return { items, now: now.toISOString(), withinMinutes };
+      return {
+        items,
+        sequenceSteps: await upcomingSequenceSteps(request.user!.id, now, until),
+        now: now.toISOString(),
+        withinMinutes,
+      };
     },
   );
 

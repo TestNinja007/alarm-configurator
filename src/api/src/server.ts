@@ -19,6 +19,7 @@ import { folderRoutes } from './routes/folders.js';
 import { healthRoutes } from './routes/health.js';
 import { meRoutes } from './routes/me.js';
 import { testRoutes } from './routes/test.js';
+import { sequenceRoutes } from './routes/sequences.js';
 import { occurrenceRoutes } from './routes/occurrences.js';
 import { speechRoutes } from './routes/speech.js';
 
@@ -123,6 +124,7 @@ export async function buildServer(): Promise<FastifyInstance> {
       await api.register(folderRoutes);
       await api.register(alarmRoutes);
       await api.register(adminRoutes);
+      await api.register(sequenceRoutes);
       await api.register(occurrenceRoutes);
       await api.register(meRoutes);
       await api.register(speechRoutes);

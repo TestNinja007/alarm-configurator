@@ -1,4 +1,5 @@
 import { Type, type Static } from '@sinclair/typebox';
+import { UpcomingStepSchema } from './sequences.js';
 import { TimestampSchema, UuidSchema } from './common.js';
 import { RuleSchema } from './rule.js';
 
@@ -249,6 +250,14 @@ export const UpcomingOccurrenceSchema = Type.Object({
 
 export const UpcomingListSchema = Type.Object({
   items: Type.Array(UpcomingOccurrenceSchema),
+  /**
+   * Steps of any sequence currently running, in the same window.
+   *
+   * A separate array because a step is not an alarm occurrence - it has no
+   * zone, no folder and no place in a day. The browser arms timers from both,
+   * so there is still one scheduler and one voice path.
+   */
+  sequenceSteps: Type.Array(UpcomingStepSchema),
   /** The server's idea of now, so a client can measure its own drift. */
   now: Type.String({ format: 'date-time' }),
   withinMinutes: Type.Integer(),

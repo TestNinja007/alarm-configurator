@@ -79,6 +79,56 @@ codes are stored as issued, not hashed** (`src/api/src/auth/verification.ts`,
 it should be a decision. The reasoning both ways is in the test that pins the
 current behaviour.
 
+## Alarm sequences
+
+*Decided in conversation 9 October 2026, before any of it was built.*
+
+A new feature, and a new concept rather than a variation on an alarm. A
+**sequence** is an ordered chain of steps that starts when somebody presses
+Activate and runs on **relative** time — "one minute from now, then forty-four
+minutes after that" — where every alarm today fires at a wall-clock time. It
+lives in its own **Alarm Configuration** tab.
+
+The worked examples it has to serve:
+
+- *Morning stretch* — back stretch 30s, pause 10s, hip stretch 30s, pause 10s,
+  leg stretch 5s. One pass, then it stops.
+- *Stand up* — every 45 minutes for eight hours, speak "stand up", a minute
+  later speak "now go back to work", and at the end of the window speak
+  "you're done for the day" and deactivate.
+
+### The two decisions made up front
+
+**Available on the basic tier, with a cap.** One sequence and five steps on
+basic; more on paid tiers. Chosen over gating it entirely *because of
+testability*: within-day repetition is gated to paid tiers, paid tiers are out
+of scope, and that is exactly why R-26 and TC45 are uncovered. Putting
+sequences behind the same gate would have made a much larger feature
+unverifiable from the day it shipped. A cap keeps it reachable by the suite and
+still leaves something to upgrade for.
+
+**Completion tracking is a later slice.** The check-mark prompt after each
+action, the log, and partial credit are wanted, and are not in the first build.
+The sequence has to run before the design for recording that it ran is worth
+settling.
+
+### Deliberately still open
+
+The user expects to settle these while it is built, not before:
+
+- What Deactivate offers — stop after the current sequence, stay on, or auto
+  shut off.
+- Whether a sequence can occupy a calendar slot against a daily goal. Named as
+  wanted and explicitly deferred.
+
+### What already exists and should not be rebuilt
+
+Within-day repetition is already in the schema and the API: `repeat_every`,
+`repeat_unit` (seconds, minutes or hours), `end_time_of_day`, with a ceiling of
+3,600 occurrences a day. Most of the *stand up* example is expressible as one
+existing alarm with a spoken message. What sequences add is the chain, the
+relative timing, the closing step and — later — the tracking.
+
 ## Conventions that are easy to get wrong
 
 **Every non-2xx response uses one envelope**, built from `AppError`:
