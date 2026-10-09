@@ -9,6 +9,7 @@ import { isUniqueViolation, query, queryOne, withTransaction } from '../db/pool.
 import { conflict, notFound, validationError } from '../errors.js';
 import {
   cycleSeconds,
+  hasFinished,
   runLengthSeconds,
   type SequenceSpec,
   type SequenceStep,
@@ -148,6 +149,33 @@ function validateRepeat(body: CreateSequenceBody) {
   return mode;
 }
 
+/**
+ * Close a run whose time is up, and report it as no longer active.
+ *
+ * Whether a sequence is still running is the server's question, not the
+ * browser's: the tab that pressed Activate may be long gone. The scheduler's
+ * own poll closes runs too, but the interface reads /sequences, so without
+ * this a finished sequence shows "Running" until something else happens to
+ * poll - which was the behaviour the first end-to-end run of this found.
+ *
+ * Returns the run only if it is genuinely still going.
+ */
+async function closeIfFinished(
+  spec: SequenceSpec,
+  run: RunRow | null,
+): Promise<RunRow | null> {
+  if (!run) return null;
+  if (!hasFinished(spec, run.started_at, clock.now())) return run;
+
+  await query(
+    `UPDATE sequence_runs
+        SET ended_at = $2, ended_reason = 'completed'
+      WHERE id = $1 AND ended_at IS NULL`,
+    [run.id, clock.now()],
+  );
+  return null;
+}
+
 async function loadOne(userId: string, id: string) {
   const row = await queryOne<SequenceRow>(
     `SELECT id, name, repeat_mode, repeat_seconds, repeat_count, closing_text,
@@ -167,12 +195,14 @@ async function loadOne(userId: string, id: string) {
     )
   ).rows;
 
-  const run =
+  const found =
     (await queryOne<RunRow>(
       `SELECT id, sequence_id, started_at, ended_at, ended_reason
          FROM sequence_runs WHERE sequence_id = $1 AND ended_at IS NULL`,
       [id],
     )) ?? null;
+
+  const run = await closeIfFinished(specFrom(row, steps), found);
 
   return { row, steps, run };
 }
@@ -220,15 +250,17 @@ export async function sequenceRoutes(app: FastifyInstance): Promise<void> {
         )
       ).rows;
 
-      return {
-        items: rows.map((row) =>
-          toSequence(
-            row,
-            steps.filter((s) => s.sequence_id === row.id),
-            runs.find((r) => r.sequence_id === row.id) ?? null,
-          ),
-        ),
-      };
+      const items = [];
+      for (const row of rows) {
+        const own = steps.filter((s) => s.sequence_id === row.id);
+        const run = await closeIfFinished(
+          specFrom(row, own),
+          runs.find((r) => r.sequence_id === row.id) ?? null,
+        );
+        items.push(toSequence(row, own, run));
+      }
+
+      return { items };
     },
   );
 

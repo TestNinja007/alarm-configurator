@@ -214,9 +214,74 @@ export interface UpcomingOccurrence {
 
 export interface UpcomingList {
   items: UpcomingOccurrence[];
+  /** Steps of any sequence currently running, in the same window. */
+  sequenceSteps: UpcomingStep[];
   /** The server's idea of now, so a client can measure its own drift. */
   now: string;
   withinMinutes: number;
+}
+
+export type StepKind = 'action' | 'pause';
+
+export interface SequenceStep {
+  id: string;
+  position: number;
+  kind: StepKind;
+  label: string;
+  durationSeconds: number;
+  speechText: string | null;
+}
+
+export interface SequenceRun {
+  id: string;
+  startedAt: string;
+  endsAt: string;
+  endedAt: string | null;
+  endedReason: 'completed' | 'stopped' | null;
+}
+
+export type RepeatMode = 'once' | 'duration' | 'count';
+
+export interface Sequence {
+  id: string;
+  name: string;
+  repeatMode: RepeatMode;
+  repeatSeconds: number | null;
+  repeatCount: number | null;
+  closingText: string | null;
+  steps: SequenceStep[];
+  /** One pass through the chain. */
+  cycleSeconds: number;
+  /** Activation to finish; for `duration` this is the window asked for. */
+  runSeconds: number;
+  activeRun: SequenceRun | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SequenceList {
+  items: Sequence[];
+}
+
+/**
+ * A step due soon.
+ *
+ * Its own type rather than an UpcomingOccurrence, because a step has no
+ * timezone, no folder and no place in a day. The scheduler handles both.
+ */
+export interface UpcomingStep {
+  sequenceId: string;
+  sequenceName: string;
+  runId: string;
+  stepId: string | null;
+  kind: StepKind | 'closing';
+  label: string;
+  speechText: string | null;
+  cycle: number;
+  position: number;
+  offsetSeconds: number;
+  durationSeconds: number;
+  utc: string;
 }
 
 export interface PasswordResetIssued {

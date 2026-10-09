@@ -5,6 +5,7 @@ import type { Session } from './api/types';
 import { DemoBanner } from './components/DemoBanner';
 import { Logo } from './components/Logo';
 import { NotificationProvider, useNotifications } from './components/NotificationProvider';
+import { SequencesPage } from './routes/SequencesPage';
 import { AdminPage } from './routes/AdminPage';
 import { AlarmsPage } from './routes/AlarmsPage';
 import { FoldersPage } from './routes/FoldersPage';
@@ -60,6 +61,9 @@ function TopBar({ session }: { session: Session }) {
             Accounts
           </Link>
         ) : null}
+        <Link className="button" to="/sequences" data-testid="sequences-link">
+          Configuration
+        </Link>
         <Link className="button" to="/settings" data-testid="settings-link">
           Settings
         </Link>
@@ -162,6 +166,7 @@ export function App() {
           <Route path="/verify" element={<Navigate to="/folders" replace />} />
           <Route path="/forgot-password" element={<Navigate to="/folders" replace />} />
           <Route path="/reset-password" element={<Navigate to="/folders" replace />} />
+          <Route path="/sequences" element={<SequencesPage />} />
           <Route path="/folders" element={<FoldersPage />} />
           <Route path="/settings" element={<SettingsPage user={session.data.user} />} />
           {/* Only mounted for an administrator; the API answers 404 regardless. */}

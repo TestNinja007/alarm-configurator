@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { say, stopSaying } from '../lib/audioSpeech';
 import { speechFor } from '../lib/speechTemplate';
-import type { UpcomingList, UpcomingOccurrence } from '../api/types';
+import type { UpcomingList, UpcomingOccurrence, UpcomingStep } from '../api/types';
 
 /**
  * Raises a desktop notification when an alarm comes due, for as long as the app
@@ -68,6 +68,17 @@ function saveFired(fired: Set<string>): void {
 }
 
 const keyFor = (occurrence: UpcomingOccurrence) => `${occurrence.alarmId}:${occurrence.utc}`;
+
+/*
+ * A step's key, which has to stay the same across polls and differ between
+ * cycles.
+ *
+ * The run id rather than the sequence id, so stopping and starting again is a
+ * fresh set of steps rather than a set this browser believes it has already
+ * fired. The instant rather than the step id, because the same step fires once
+ * per cycle and its id does not change.
+ */
+const stepKeyFor = (step: UpcomingStep) => `step:${step.runId}:${step.utc}`;
 
 function currentPermission(): NotificationPermissionState {
   if (typeof window === 'undefined' || !('Notification' in window)) return 'unsupported';
@@ -157,6 +168,39 @@ export function useAlarmNotifications() {
     }
   }, []);
 
+  /**
+   * Fire a sequence step.
+   *
+   * Separate from `show` because almost everything differs: a step has no
+   * folder to name, no place in a day to say, and its words are the ones
+   * written against that step rather than composed from a template. What it
+   * shares is the thing that matters - the same fired-key memory, so a step
+   * cannot sound twice, and the same voice path.
+   */
+  const showStep = useCallback((step: UpcomingStep) => {
+    const key = stepKeyFor(step);
+    if (fired.current.has(key)) return;
+
+    fired.current.add(key);
+    saveFired(fired.current);
+    setLastFired(key);
+
+    if (step.speechText) void say(step.speechText, 'female');
+
+    try {
+      const notification = new Notification(step.sequenceName, {
+        body: step.kind === 'closing' ? step.label : `${step.label} — ${step.durationSeconds}s`,
+        tag: key,
+      });
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+      };
+    } catch {
+      // As above.
+    }
+  }, []);
+
   // Set a timer for everything due inside the lookahead window.
   useEffect(() => {
     if (!active || !upcoming.data) return;
@@ -171,7 +215,10 @@ export function useAlarmNotifications() {
      * lookahead holds a dozen of them, so disabling an alarm left it going
      * off for another two minutes.
      */
-    const live = new Set(upcoming.data.items.map(keyFor));
+    const live = new Set([
+      ...upcoming.data.items.map(keyFor),
+      ...upcoming.data.sequenceSteps.map(stepKeyFor),
+    ]);
     for (const [key, timer] of timers.current) {
       if (live.has(key)) continue;
       window.clearTimeout(timer);
@@ -196,10 +243,35 @@ export function useAlarmNotifications() {
       timers.current.set(key, timer);
     }
 
+    /*
+     * The same arming, for sequence steps.
+     *
+     * Deliberately the same loop, the same timer map and the same disarm
+     * rule above: deactivating a sequence makes its steps stop appearing in
+     * the poll, and that is what cancels their timers. A second scheduler
+     * would need its own copy of all of that, and would be the obvious place
+     * for the two to disagree about what is armed.
+     */
+    for (const step of upcoming.data.sequenceSteps) {
+      const key = stepKeyFor(step);
+      if (fired.current.has(key) || timers.current.has(key)) continue;
+
+      const delay = Date.parse(step.utc) - Date.now();
+      if (delay > LOOKAHEAD_MS) continue;
+
+      const timer = window.setTimeout(() => {
+        timers.current.delete(key);
+        publishArmed();
+        showStep(step);
+      }, Math.max(0, delay));
+
+      timers.current.set(key, timer);
+    }
+
     // Publish the new count; see the store above for why this is observable
     // at all.
     publishArmed();
-  }, [active, upcoming.data, show, publishArmed]);
+  }, [active, upcoming.data, show, showStep, publishArmed]);
 
   // Drop every pending timer when notifications are switched off.
   useEffect(() => {
