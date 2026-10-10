@@ -60,12 +60,12 @@ TEST_SUPPORT=1 REGISTRATION_OPEN=1 npm start --workspace @alarm/api
 
 ## Where things stand
 
-*Last updated 6 October 2026. Update this when it stops being true.*
+*Last updated 10 October 2026. Update this when it stops being true.*
 
 The application is covered by two test stacks in the
 [alarm-test-framework](https://github.com/TestNinja007/alarm-test-framework)
 repository — 78 Playwright specs across three engines and 62 pytest tests
-against the database — plus 38 unit tests here. CI is green on both.
+against the database — plus 58 unit tests here. CI is green on both.
 
 **22 defects found, 20 fixed, 1 open, 1 by design.** The open one is DEF-08:
 multi-second maxima on database-backed endpoints under load, cause not
@@ -73,11 +73,44 @@ established. Its symptoms reach this repository as pool acquisition failures,
 which now answer 503 with `Retry-After` rather than an unhandled 500 — correct
 reporting of a fault, which is not a fix for it.
 
-One thing waiting on a human rather than on code: **verification and reset
-codes are stored as issued, not hashed** (`src/api/src/auth/verification.ts`,
-`passwordReset.ts`). No documented rule says otherwise, so it is not a defect;
-it should be a decision. The reasoning both ways is in the test that pins the
-current behaviour.
+### Sequences: built, and not yet covered by a test
+
+The mechanism works end to end — the chain fires on relative time, speaks each
+step, stays silent through a pause, runs its cycles and closes its own run.
+Verified by driving the interface with the voice and notifications recorded.
+
+**It has no requirements and no test cases.** Nothing in the documented rules
+mentions a sequence, so the traceability matrix does not know the feature
+exists, and the suite would not notice if it broke. Those are the owner's to
+write; two cases suggest themselves, because both are bugs that got past the
+unit tests and were only found by running the thing:
+
+- Activating a sequence must fire its first step. It is due at the instant of
+  activation, so a poll arriving milliseconds later had already passed it — the
+  symptom was pressing Activate and nothing happening.
+- A finished run must stop reporting itself as running. It only closed on a
+  scheduler poll, and the interface reads `/sequences`.
+
+Also untouched: the tier cap (one sequence, five steps on basic), and what
+Deactivate should offer beyond stopping immediately.
+
+### Waiting on a person rather than on code
+
+**Verification and reset codes are stored as issued, not hashed**
+(`src/api/src/auth/verification.ts`, `passwordReset.ts`). No documented rule
+says otherwise, so it is not a defect; it should be a decision. The reasoning
+both ways is in the test that pins the current behaviour.
+
+### Running it locally
+
+The test framework needs this application up with its hooks on, and nothing
+restarts it automatically. A stopped application makes the pytest layer skip
+almost everything, which is easy to misread as the tests having changed.
+
+```bash
+npm run build
+TEST_SUPPORT=1 REGISTRATION_OPEN=1 npm start --workspace @alarm/api
+```
 
 ## Alarm sequences
 
