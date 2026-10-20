@@ -16,6 +16,7 @@ export type ErrorCode =
   | 'rate_limited'
   | 'malformed_request'
   | 'service_unavailable'
+  | 'bad_gateway'
   | 'internal';
 
 export const statusForCode: Record<ErrorCode, number> = {
@@ -26,6 +27,7 @@ export const statusForCode: Record<ErrorCode, number> = {
   rate_limited: 429,
   malformed_request: 400,
   service_unavailable: 503,
+  bad_gateway: 502,
   internal: 500,
 };
 
@@ -90,6 +92,18 @@ export const serviceUnavailable = (
     details: { ...options.details, retryAfter: options.retryAfter ?? 1 },
     cause: options.cause,
   });
+
+/**
+ * A service this one depends on answered, and the answer was unusable.
+ *
+ * 502 rather than 503: the dependency is up, it refused, and asking again will
+ * get the same refusal - a bad credential, a request it will not accept. 503
+ * says "try later"; this says "trying later will not help". The distinction
+ * only exists once there is a service to depend on, which is why it arrived
+ * with the speech service.
+ */
+export const badGateway = (message: string, options: { cause?: unknown } = {}) =>
+  new AppError('bad_gateway', message, { cause: options.cause });
 
 export const conflict = (
   message: string,

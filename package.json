@@ -5,22 +5,25 @@
   "license": "MIT",
   "workspaces": [
     "src/api",
-    "src/web"
+    "src/web",
+    "src/speech"
   ],
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "build": "npm run build --workspace @alarm/web && npm run build --workspace @alarm/api",
+    "build": "npm run build --workspace @alarm/web && npm run build --workspace @alarm/api && npm run build --workspace @alarm/speech",
     "start": "npm run start --workspace @alarm/api",
     "dev:api": "npm run dev --workspace @alarm/api",
     "dev:web": "npm run dev --workspace @alarm/web",
     "migrate": "npm run migrate --workspace @alarm/api",
     "seed": "npm run seed --workspace @alarm/api",
-    "test": "npm run test --workspace @alarm/api",
-    "typecheck": "npm run typecheck --workspace @alarm/api && npm run typecheck --workspace @alarm/web",
-    "lint": "npm run lint --workspace @alarm/api && npm run lint --workspace @alarm/web",
+    "test": "npm run test --workspace @alarm/api && npm run test --workspace @alarm/speech",
+    "typecheck": "npm run typecheck --workspace @alarm/api && npm run typecheck --workspace @alarm/web && npm run typecheck --workspace @alarm/speech",
+    "lint": "npm run lint --workspace @alarm/api && npm run lint --workspace @alarm/web && npm run lint --workspace @alarm/speech",
     "docs:seed": "tsx scripts/generate-seed-doc.ts",
-    "ci": "npm run lint && npm run typecheck && npm run build && npm test"
+    "ci": "npm run lint && npm run typecheck && npm run build && npm test",
+    "start:speech": "npm run start --workspace @alarm/speech",
+    "migrate:speech": "npm run migrate --workspace @alarm/speech"
   }
 }

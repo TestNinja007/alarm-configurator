@@ -1,19 +1,20 @@
-import { config } from '../config.js';
+import type { SpeechConfig } from './config.js';
 
 /**
  * Turning text into audio.
  *
- * Three providers, chosen by TTS_PROVIDER:
+ * Moved here from the main API unchanged in behaviour. Three providers, chosen
+ * by TTS_PROVIDER:
  *
- *   none        no server-side audio at all; the browser speaks for itself
- *   mock        generates a real, playable WAV locally. No account, no network,
- *               no cost, and deterministic — the same text always produces the
- *               same bytes, which is what makes the caching testable.
+ *   none        no audio at all; the browser speaks for itself
+ *   mock        a real, playable WAV generated locally. No account, no network,
+ *               no cost, and deterministic - the same text always produces the
+ *               same bytes, which is what makes the cache and the contract
+ *               tests possible without depending on a third party.
  *   elevenlabs  the real thing
  *
- * The mock exists so the whole path — request, cache, storage, playback — can
- * be exercised before anyone has a key, and so tests never depend on a third
- * party being up or on a quota not being spent.
+ * Configuration is passed in rather than imported, so a test can build a
+ * provider with whatever settings it needs without touching the environment.
  */
 
 export interface SynthesisResult {
@@ -60,9 +61,7 @@ function wavHeader(dataLength: number): Buffer {
  * message from another and a test can assert that longer text really did
  * produce a longer file.
  */
-function mockAudio(text: string, voice: Voice): SynthesisResult {
-  // Roughly a syllable's worth of audio per three characters, floored so even
-  // a single word produces something audible.
+export function mockAudio(text: string, voice: Voice): SynthesisResult {
   const seconds = Math.min(10, Math.max(0.4, text.length / 12));
   const samples = Math.floor(SAMPLE_RATE * seconds);
   // A lower tone for the male preference, so the two are distinguishable.
@@ -85,39 +84,55 @@ function mockAudio(text: string, voice: Voice): SynthesisResult {
 /* --------------------------------------------------------- elevenlabs ----- */
 
 /**
- * Two of ElevenLabs' stock voices. They are referenced by id rather than by
- * name because names are editable in their dashboard and ids are not.
+ * Two of ElevenLabs' stock voices, referenced by id rather than by name
+ * because names are editable in their dashboard and ids are not.
  */
 const ELEVENLABS_VOICES: Record<Voice, string> = {
-  // Adam
-  male: process.env.ELEVENLABS_VOICE_MALE ?? 'pNInz6obpgDQGcFmaJgB',
-  // Rachel
-  female: process.env.ELEVENLABS_VOICE_FEMALE ?? '21m00Tcm4TlvDq8ikWAM',
+  male: process.env.ELEVENLABS_VOICE_MALE ?? 'pNInz6obpgDQGcFmaJgB', // Adam
+  female: process.env.ELEVENLABS_VOICE_FEMALE ?? '21m00Tcm4TlvDq8ikWAM', // Rachel
 };
 
-const ELEVENLABS_TIMEOUT_MS = 20_000;
+/**
+ * How long to wait for ElevenLabs. The main API waits a little longer than
+ * this for the speech service, so a slow provider is reported by the service
+ * that knows why, rather than by a caller that only knows it gave up.
+ */
+export const ELEVENLABS_TIMEOUT_MS = 20_000;
 
-async function elevenLabsAudio(text: string, voice: Voice): Promise<SynthesisResult> {
-  const key = config.tts.apiKey;
-  if (!key) throw new SynthesisError('TTS_API_KEY is required when TTS_PROVIDER=elevenlabs.');
+async function elevenLabsAudio(
+  text: string,
+  voice: Voice,
+  tts: SpeechConfig['tts'],
+): Promise<SynthesisResult> {
+  if (!tts.apiKey) {
+    throw new SynthesisError('TTS_API_KEY is required when TTS_PROVIDER=elevenlabs.');
+  }
 
-  const response = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICES[voice]}`,
-    {
-      method: 'POST',
-      headers: {
-        'xi-api-key': key,
-        'content-type': 'application/json',
-        accept: 'audio/mpeg',
+  let response: Response;
+  try {
+    response = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICES[voice]}`,
+      {
+        method: 'POST',
+        headers: {
+          'xi-api-key': tts.apiKey,
+          'content-type': 'application/json',
+          accept: 'audio/mpeg',
+        },
+        body: JSON.stringify({
+          text,
+          model_id: tts.model,
+          voice_settings: { stability: 0.5, similarity_boost: 0.75 },
+        }),
+        signal: AbortSignal.timeout(ELEVENLABS_TIMEOUT_MS),
       },
-      body: JSON.stringify({
-        text,
-        model_id: config.tts.model,
-        voice_settings: { stability: 0.5, similarity_boost: 0.75 },
-      }),
-      signal: AbortSignal.timeout(ELEVENLABS_TIMEOUT_MS),
-    },
-  );
+    );
+  } catch (error) {
+    // Unreachable or too slow: worth trying again later, unlike a refusal.
+    throw new SynthesisError(`ElevenLabs could not be reached: ${(error as Error).message}`, {
+      retryable: true,
+    });
+  }
 
   if (!response.ok) {
     const detail = await response.text().catch(() => '');
@@ -137,17 +152,21 @@ async function elevenLabsAudio(text: string, voice: Voice): Promise<SynthesisRes
 
 /* ------------------------------------------------------------------------- */
 
-export function serverSpeechEnabled(): boolean {
-  return config.tts.provider !== 'none';
+export function synthesisEnabled(tts: SpeechConfig['tts']): boolean {
+  return tts.provider !== 'none';
 }
 
-export async function synthesize(text: string, voice: Voice): Promise<SynthesisResult> {
-  switch (config.tts.provider) {
+export async function synthesize(
+  text: string,
+  voice: Voice,
+  tts: SpeechConfig['tts'],
+): Promise<SynthesisResult> {
+  switch (tts.provider) {
     case 'mock':
       return mockAudio(text, voice);
     case 'elevenlabs':
-      return elevenLabsAudio(text, voice);
+      return elevenLabsAudio(text, voice, tts);
     default:
-      throw new SynthesisError('Server-side speech is switched off.');
+      throw new SynthesisError('Speech generation is switched off.');
   }
 }

@@ -1,0 +1,351 @@
+{
+  "consumer": {
+    "name": "alarm-api"
+  },
+  "interactions": [
+    {
+      "description": "a request carrying the wrong service token",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "speech generation is enabled"
+        }
+      ],
+      "request": {
+        "headers": {
+          "authorization": [
+            "Bearer not-the-token"
+          ]
+        },
+        "method": "GET",
+        "path": "/v1/settings"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "error": {
+              "message": "A valid service token is required."
+            }
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.error.message": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 401
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a request for audio that does not exist",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "no audio exists"
+        }
+      ],
+      "request": {
+        "headers": {
+          "authorization": [
+            "Bearer valid-service-token"
+          ]
+        },
+        "method": "GET",
+        "path": "/v1/audio/ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      },
+      "response": {
+        "status": 404
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a request for audio that exists",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "audio exists",
+          "params": {
+            "base64": "UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=",
+            "contentType": "audio/wav",
+            "id": "05aaac78250cac9358d3bf5958ebb3d9e75902026becdc13f2730a62a7ecbf38"
+          }
+        }
+      ],
+      "request": {
+        "headers": {
+          "authorization": [
+            "Bearer valid-service-token"
+          ]
+        },
+        "method": "GET",
+        "path": "/v1/audio/05aaac78250cac9358d3bf5958ebb3d9e75902026becdc13f2730a62a7ecbf38"
+      },
+      "response": {
+        "headers": {
+          "Content-Type": [
+            "audio/wav"
+          ]
+        },
+        "matchingRules": {
+          "header": {
+            "Content-Type": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^audio/[a-z0-9.+-]+$"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a request for the speech settings",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "speech generation is enabled"
+        }
+      ],
+      "request": {
+        "headers": {
+          "authorization": [
+            "Bearer valid-service-token"
+          ]
+        },
+        "method": "GET",
+        "path": "/v1/settings"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "enabled": true,
+            "maxLength": 200,
+            "provider": "mock"
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.enabled": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.maxLength": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.provider": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a request to generate speech",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "speech generation is enabled"
+        }
+      ],
+      "request": {
+        "body": {
+          "content": {
+            "text": "Stand up",
+            "voice": "female"
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ],
+          "authorization": [
+            "Bearer valid-service-token"
+          ],
+          "content-type": [
+            "application/json"
+          ]
+        },
+        "method": "POST",
+        "path": "/v1/syntheses"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "bytes": 10710,
+            "contentType": "audio/wav",
+            "generated": true,
+            "id": "05aaac78250cac9358d3bf5958ebb3d9e75902026becdc13f2730a62a7ecbf38"
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.bytes": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.contentType": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.generated": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^[0-9a-f]{64}$"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      },
+      "type": "Synchronous/HTTP"
+    },
+    {
+      "description": "a request to generate speech while generation is off",
+      "pending": false,
+      "providerStates": [
+        {
+          "name": "speech generation is switched off"
+        }
+      ],
+      "request": {
+        "body": {
+          "content": {
+            "text": "Stand up",
+            "voice": "female"
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ],
+          "authorization": [
+            "Bearer valid-service-token"
+          ],
+          "content-type": [
+            "application/json"
+          ]
+        },
+        "method": "POST",
+        "path": "/v1/syntheses"
+      },
+      "response": {
+        "body": {
+          "content": {
+            "error": {
+              "message": "Speech generation is switched off here."
+            }
+          },
+          "contentType": "application/json",
+          "encoded": false
+        },
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ]
+        },
+        "matchingRules": {
+          "body": {
+            "$.error.message": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 503
+      },
+      "type": "Synchronous/HTTP"
+    }
+  ],
+  "metadata": {
+    "pact-js": {
+      "version": "17.1.4"
+    },
+    "pactRust": {
+      "ffi": "0.5.8",
+      "models": "1.3.16"
+    },
+    "pactSpecification": {
+      "version": "4.0"
+    }
+  },
+  "provider": {
+    "name": "speech-service"
+  }
+}

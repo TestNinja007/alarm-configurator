@@ -125,10 +125,19 @@ export const config = {
    * Server-side speech. `mock` generates real playable audio locally, so the
    * whole path can be exercised without an account, a key or a quota.
    */
-  tts: {
-    provider: (process.env.TTS_PROVIDER ?? 'none') as 'none' | 'mock' | 'elevenlabs',
-    apiKey: process.env.TTS_API_KEY,
-    model: process.env.TTS_MODEL ?? 'eleven_multilingual_v2',
+  /*
+   * Generated speech lives in its own service now (src/speech). This API
+   * knows only where it is and how to identify itself; the provider, its key
+   * and its model are the speech service's settings, not this one's.
+   * Unset means no speech service, and speech is simply off.
+   */
+  speechService: {
+    url: process.env.SPEECH_SERVICE_URL || undefined,
+    token: process.env.SPEECH_SERVICE_TOKEN,
+    // Longer than the speech service's own 20s provider timeout, so a slow
+    // provider is reported by the service that knows why.
+    timeoutMs: integer('SPEECH_SERVICE_TIMEOUT_MS', 25_000),
+    settingsTimeoutMs: integer('SPEECH_SERVICE_SETTINGS_TIMEOUT_MS', 2_000),
   },
   /** Directory holding the built SPA; absent during API-only development. */
   webDistDir: resolve(repoRoot, 'src', 'web', 'dist'),

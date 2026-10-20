@@ -37,6 +37,17 @@ npm run build
 npm start
 ```
 
+**Generated speech is a separate service** — see [Generated audio](#generated-audio).
+It is optional: without it the application runs normally and the browser speaks
+in its own voice. To run it alongside, in a second terminal:
+
+```
+npm run start:speech     # migrates its own schema, then listens on 8090
+```
+
+with `SPEECH_SERVICE_TOKEN` set for both processes and `SPEECH_SERVICE_URL`
+pointing the main API at it.
+
 ## Deploying
 
 [`render.yaml`](render.yaml) is a Render blueprint: a free Postgres plus a Node
@@ -128,6 +139,20 @@ restores everything.
 | `LIST_DELAY_MS` | `600` | Fixed delay in front of the alarm list so the A-01 skeleton is observable. Never random. Set `0` to remove it. |
 | `SESSION_SECRET` | — | Signs session cookies. |
 | `SEED_PROFILE` | `demo` | Which profile the container seeds at startup: `demo` or `empty`. |
+| `SPEECH_SERVICE_URL` | — | Where the speech service is. Unset means no generated speech: the browser uses its own voice. |
+| `SPEECH_SERVICE_TOKEN` | — | Presented to the speech service on every call. Must match the service's own setting. |
+| `SPEECH_SERVICE_TIMEOUT_MS` | `25000` | How long to wait for audio. Longer than the service's own 20s provider timeout, so a slow provider is reported by the service that knows why. |
+
+The speech service reads its own settings, separately:
+
+| Variable | Default | Meaning |
+| --- | --- | --- |
+| `SPEECH_PORT` | `8090` | Where it listens. |
+| `SPEECH_SERVICE_TOKEN` | — | What callers must present. **Required** — it will not start without one, rather than run as an open, metered endpoint. |
+| `SPEECH_DATABASE_URL` | `DATABASE_URL` | Its database. Its tables live in their own schema, so this may be the same server and database. |
+| `SPEECH_SCHEMA` | `speech` | The schema it owns. |
+| `TTS_PROVIDER` | `none` | `none`, `mock` or `elevenlabs`. Read by the speech service only. |
+| `TTS_API_KEY` / `TTS_MODEL` | — / `eleven_multilingual_v2` | For `elevenlabs`. |
 
 ## Rules the application follows
 
@@ -482,7 +507,26 @@ to `voiceschanged` or it reports the fallback for ever.
 The browser's own voices differ from machine to machine. A provider gives every
 listener the same voice, at the cost of an API key and a quota.
 
-`TTS_PROVIDER` picks how:
+**This is the one part of the application run as its own service** — under
+`src/speech`, with its own process, its own data and its own tests. Everything
+else is deliberately a single application. Speech was extracted to learn and
+demonstrate microservices testing, not because the application needed it; it
+was chosen because it was already almost separate: about 370 lines owning one
+table that nothing referenced, with no backend code outside it importing it.
+
+```
+browser ──► main API (src/api) ──HTTP + token──► speech service (src/speech) ──► provider
+             signing in, tiers,                    provider, cache, bytes
+             per-user rate limit
+             schema: public                        schema: speech
+```
+
+**The browser did not change.** It calls the same three routes with the same
+shapes. The main API keeps what belongs to the *user* — signing in, the tier
+gate, the rate limit — and asks the speech service for everything about
+*speech*.
+
+`TTS_PROVIDER`, set on the speech service, picks how audio is made:
 
 | Value | Behaviour |
 | --- | --- |
@@ -490,30 +534,58 @@ listener the same voice, at the cost of an API key and a quota.
 | `mock` | Generates a real, playable WAV locally. No account, no network, no cost. |
 | `elevenlabs` | The provider. Needs `TTS_API_KEY`. |
 
-`mock` exists so the whole path — request, cache, storage, playback, fallback —
-can be exercised before anyone has a key, and so tests never depend on a third
-party being up or on a quota not being spent. Its tone is lower for `male` than
-`female` and longer for longer text, so one message is audibly different from
-another and a test can assert that a longer sentence really did produce a
-longer file.
+`mock` exists so the whole path can be exercised before anyone has a key, and so
+tests never depend on a third party being up or a quota being unspent. Its tone
+is lower for `male` than `female` and longer for longer text, so a test can
+assert that a longer sentence really did produce a longer file.
 
-**Audio is cached** in `speech_audio`, keyed by a sha256 of provider, voice and
-the exact words. A free tier is measured in characters a month, and previewing
-a message while editing it would otherwise exhaust one in an afternoon. The
-response says `generated: true` the first time and `false` thereafter, which is
-the thing worth asserting. It lives in Postgres rather than on disk because the
-application's disk is ephemeral: a redeploy would throw the cache away and the
-next preview would pay for everything again.
+**Audio is cached** by the speech service, keyed by a sha256 of provider, voice
+and the exact words, in `speech.speech_audio`. A free tier is measured in
+characters a month, and previewing a message while editing it would otherwise
+exhaust one in an afternoon. The response says `generated: true` the first time
+and `false` thereafter. It lives in Postgres rather than on disk because a
+redeploy would throw a disk cache away.
 
-| Endpoint | |
+**Its data is its own — schema per service.** The speech service owns the
+`speech` schema and the main API's schema holds no speech data. Because both
+connect as the same database role, that separation is **a convention enforced
+by tests, not a permission**; making it a permission needs a separate role,
+which needs a superuser. The database layer in the test framework fails if the
+main API's schema ever holds speech data again, if a foreign key crosses between
+the two, or if their migration ledgers overlap.
+
+| Endpoint (main API) | |
 | --- | --- |
 | `POST /speech` | `{ text, voice }` → an id and a url. 60 per user per 15 minutes. |
 | `GET /speech/{id}` | The bytes. Immutable, since the id is a hash of the content. |
-| `GET /speech/settings` | Whether server audio is on, and which provider. |
+| `GET /speech/settings` | Whether server audio is on *for this account*, and which provider. |
 
-**Every failure falls back to the browser's voice.** A missing key, a spent
-quota, a timeout, a refused autoplay — an alarm that says nothing because the
-provider was down is worse than one that speaks in the wrong voice.
+| Endpoint (speech service) | |
+| --- | --- |
+| `GET /health` | Up or degraded. The only route without a token. |
+| `GET /v1/settings` | Whether it can generate, and with what. |
+| `POST /v1/syntheses` | Generate, or return the cached copy. |
+| `GET /v1/audio/{id}` | The bytes. |
+
+The service's routes are **versioned** because they are an interface between two
+services: the main API has to keep working while the service changes, and an
+unversioned internal API is one where every change is a coordinated deploy.
+
+**When the speech service is down, speech degrades rather than fails.**
+
+| What went wrong | Main API answers | Why that status |
+| --- | --- | --- |
+| No speech service configured | `POST /speech` is 404, settings say off | Reads the same as a feature never built |
+| Down, too slow, or busy | 503 with `Retry-After` | It may recover — try later |
+| Its provider refused, for good | 502 | It answered, and asking again gets the same answer |
+| It rejected our token | 502, logged as an error | An operator problem nothing else will ever report |
+
+In every case the browser speaks in its own voice instead — an alarm that says
+nothing because a service was down is worse than one in the wrong voice. And
+settings report the service as unavailable *before* the browser tries it, so the
+browser uses its own voice from the start rather than failing on the first
+alarm. The main API's health check does not depend on the speech service, so it
+going down does not take the main API with it — the lesson of DEF-02.
 
 ## Desktop notifications
 
@@ -705,7 +777,43 @@ type-check, build, unit tests — so the code can be validated without a remote.
 
 ## Tests in this repository
 
-Unit tests for the recurrence engine only, under
-`src/api/src/recurrence/engine.test.ts`, run with `npm test`. 30 tests covering
-R-04 through R-08. There is deliberately no end-to-end,
-API, UI or performance suite here — that is the separate framework's job.
+Unit tests and contract tests, run with `npm test` — 91 in all. There is
+deliberately no end-to-end, UI or performance suite here; that is the separate
+test framework's job.
+
+| File | Tests | What it covers |
+| --- | --- | --- |
+| `src/api/src/recurrence/engine.test.ts` | 30 | The recurrence engine, R-04 to R-08 |
+| `src/api/src/sequences/engine.test.ts` | 20 | Sequences: chains, cycles, the closing line |
+| `src/api/src/db/acquisitionFailure.test.ts` | 8 | A pool failure becoming a 503 (DEF-19) |
+| `src/api/src/speech/client.test.ts` | 11 | The main API when the speech service is down, slow, busy or refusing |
+| `src/api/src/speech/client.pact.test.ts` | 6 | **The contract** — what the main API relies on the speech service for |
+| `src/speech/src/server.test.ts` | 14 | The speech service in isolation, its provider stubbed |
+| `src/speech/src/contract.pact.test.ts` | 2 | **The contract** — the speech service honouring it |
+
+### Contract tests
+
+The two Pact files are one contract seen from both sides, and neither runs the
+other service:
+
+1. **The main API** (consumer) runs its client against a mock that Pact stands
+   up, and records every request it makes and every answer it relies on, in
+   `pacts/alarm-api-speech-service.json`.
+2. **The speech service** (provider) replays every recorded request against its
+   real routes, validation and token check, and fails if any answer differs.
+
+So renaming a field in the speech service fails its contract test even if its
+own unit tests are updated to match — the main API recorded that it relies on
+the old name. That is the whole value: the breaking change is caught before
+anything is deployed, not by the other service in production.
+
+Two habits worth keeping. **Describe only what the consumer uses** — the audio
+interaction specifies a status and an audio Content-Type, and nothing about the
+bytes, because the main API passes them through unread. An earlier version
+pinned `audio/wav`, which is only what the mock makes; ElevenLabs returns
+`audio/mpeg`, so it would have failed the first time it met real audio. And
+**no secrets in the contract** — it says "a valid token" as a placeholder, which
+the provider swaps for its real one as each request is replayed.
+
+The consumer test must run before the provider's, since it writes the file the
+provider reads. `npm test` runs them in that order.

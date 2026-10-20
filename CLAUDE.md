@@ -60,12 +60,17 @@ TEST_SUPPORT=1 REGISTRATION_OPEN=1 npm start --workspace @alarm/api
 
 ## Where things stand
 
-*Last updated 10 October 2026. Update this when it stops being true.*
+*Last updated 20 October 2026. Update this when it stops being true.*
 
 The application is covered by two test stacks in the
 [alarm-test-framework](https://github.com/TestNinja007/alarm-test-framework)
-repository — 78 Playwright specs across three engines and 62 pytest tests
-against the database — plus 58 unit tests here. CI is green on both.
+repository — 78 Playwright specs across three engines and 68 pytest tests
+against the database — plus 91 tests here: 75 in the main API and 16 in the
+speech service, including the contract tests between the two.
+
+**It is two services now, not one.** Generated speech runs as its own service
+under `src/speech`; see "The speech service" below. Everything else is still a
+single application, deliberately.
 
 **22 defects found, 20 fixed, 1 open, 1 by design.** The open one is DEF-08:
 multi-second maxima on database-backed endpoints under load, cause not
@@ -161,6 +166,98 @@ Within-day repetition is already in the schema and the API: `repeat_every`,
 3,600 occurrences a day. Most of the *stand up* example is expressible as one
 existing alarm with a spoken message. What sequences add is the chain, the
 relative timing, the closing step and — later — the tracking.
+
+## The speech service
+
+*Decided in conversation 20 October 2026, and built the same day.*
+
+Server-generated speech was **extracted into its own service** under
+`src/speech` — the one part of the application run as a microservice.
+Everything else stays a monolith, deliberately.
+
+### Why, stated honestly
+
+The application does not need microservices: one app with one owner has none of
+the problems they solve. This is done **to learn and demonstrate microservices
+testing** — contract tests, a service tested in isolation, behaviour when a
+dependency is down. That is a legitimate reason, and it is the one to give.
+"The app needed microservices" would not be true.
+
+### Why speech, and not mail or a full conversion
+
+Measured, not guessed. Speech was ~370 lines owning exactly one table
+(`speech_audio`), which nothing references, and **no backend code outside it
+imported it** — its only consumer was the browser. Mail was tangled into four
+callers including the health check, which is how DEF-02 happened. Converting
+everything would rewrite a working application for no product benefit.
+
+### The shape
+
+- **The browser does not change.** `/speech`, `/speech/:id` and
+  `/speech/settings` keep their exact external shape.
+- **The main API keeps the user's concerns** — signing in, the tier gate, the
+  per-user rate limit — and calls the speech service over HTTP.
+- **The speech service owns the speech concerns** — the provider, the cache,
+  the bytes — behind a service token, so the main API is its only caller.
+- **When the speech service is down or unconfigured, speech degrades rather
+  than fails**: settings report it unavailable and the browser uses its own
+  voice. That fallback already existed; it now also covers a dependency being
+  down.
+
+### Data: schema per service
+
+The speech service owns a `speech` schema and touches nothing else; the main
+API's schema no longer holds speech data.
+
+This is **schema per service** on a shared server — one of the three recognised
+ways to keep a service's data private, alongside private tables and a database
+server per service. It was chosen because the local database user can create a
+schema but not a database or a role. **The isolation is therefore by convention
+and by test, not by permission**: both services connect as the same role.
+Making it a permission boundary needs one superuser command — a separate role
+owning the `speech` schema — and is the upgrade path, not done.
+
+### Testing
+
+- **Contract tests (Pact)** check the main API's expectations of the speech
+  service against what the service really returns, without running both. They
+  need no database: the service's storage sits behind an interface with an
+  in-memory implementation.
+- **The speech service is tested in isolation**, with the mock provider, so
+  nothing depends on ElevenLabs being up or a quota being unspent.
+- **The database layer verifies what is stored**, in the speech schema.
+
+**Generated speech is a paid-tier feature** (`generatedSpeech: false` on basic),
+and paid tiers are out of scope. So the full path *through the main API as a
+user* stays untested by the suite, as R-26 does. The service and the contract
+between the two are fully testable, which is what this extraction is for.
+
+### What building it found
+
+- **A security test that tested the opposite of its claim.** The "fails closed
+  without a token" test called `configWith({}, undefined)` - and passing
+  `undefined` to a parameter with a default *uses the default*. It configured a
+  token and checked the open path. Fixed, then proved by breaking the server to
+  fail open and watching the test catch it.
+- **A contract that was too narrow.** The audio interaction first pinned
+  `audio/wav`, which is only what the mock provider makes; ElevenLabs returns
+  `audio/mpeg`. It would have failed the first time it met real audio, and it
+  constrained bytes the main API never reads. It now specifies a status and an
+  audio Content-Type, nothing more.
+- **Database tests that passed for the wrong reason.** Helpers that asked about
+  a table by name alone quietly found the speech service's copy once the table
+  existed in two schemas. Every schema question now names its schema.
+
+### Still open
+
+- **Deploying the speech service.** `render.yaml` still describes one service.
+  Production behaviour is unchanged by the extraction - generated speech was
+  already off there, since `TTS_PROVIDER` was never set - so nothing broke, but
+  the speech service exists only locally and in CI.
+- **A separate database role for the speech schema**, which would make the
+  isolation a permission rather than a convention. Needs a superuser.
+- **Test cases for it.** Like sequences, the speech service has no requirements
+  and no designed cases - only the engineering tests written alongside it.
 
 ## Conventions that are easy to get wrong
 
