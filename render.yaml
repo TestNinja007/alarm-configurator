@@ -55,5 +55,7 @@ services:
 databases:
   - name: alarm1-configurator-db
     plan: free
-    databaseName: alarm_configurator
-    user: alarm_app
+    # Matches the replacement created in the dashboard on 1 November 2026, so a
+    # Blueprint sync describes the database that exists rather than another.
+    databaseName: alarm1_configurator_db
+    user: alarm1_configurator_db_user
