@@ -29,7 +29,7 @@ database it never becomes healthy and requests simply hang.
 than pay or move providers - accepting that it will expire again roughly 30 days
 after creation. When the site goes down with requests hanging rather than
 erroring, check the database's status in the Render dashboard first. Recovery
-is: new free database (same name, same region), point `DATABASE_URL` at it,
+is: new free database (same region; Render will not reuse an expired database's name, so the name changes and `render.yaml` must change with it — currently `alarm1-configurator-db`), point `DATABASE_URL` at it,
 deploy manually; boot recreates the schema and the demo seed.
 
 **Docker is not in the production path.** `render.yaml` sets `runtime: node`
