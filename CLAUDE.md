@@ -20,6 +20,18 @@ would drift, which is DEF-15 one layer up.
 live; a deploy is a separate manual step. Never state that a change is live
 without checking — the served asset hashes against a local build will tell you.
 
+**The database is on Render's free plan, and free databases expire about 30
+days after creation.** The first one, created 25 September 2026, expired in late
+October and took the site down: the app migrates and seeds at boot, so with no
+database it never becomes healthy and requests simply hang.
+
+*Decided 1 November 2026:* replace it with another free Render database rather
+than pay or move providers - accepting that it will expire again roughly 30 days
+after creation. When the site goes down with requests hanging rather than
+erroring, check the database's status in the Render dashboard first. Recovery
+is: new free database (same name, same region), point `DATABASE_URL` at it,
+deploy manually; boot recreates the schema and the demo seed.
+
 **Docker is not in the production path.** `render.yaml` sets `runtime: node`
 and says why in a comment: the Dockerfile has never been exercised, so the
 blueprint deliberately avoids it. CI builds and starts the app the same way
