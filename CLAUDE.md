@@ -72,13 +72,21 @@ TEST_SUPPORT=1 REGISTRATION_OPEN=1 npm start --workspace @alarm/api
 
 ## Where things stand
 
-*Last updated 20 October 2026. Update this when it stops being true.*
+*Last updated 8 November 2026. Update this when it stops being true.*
 
 The application is covered by two test stacks in the
 [alarm-test-framework](https://github.com/TestNinja007/alarm-test-framework)
 repository — 78 Playwright specs across three engines and 68 pytest tests
-against the database — plus 91 tests here: 75 in the main API and 16 in the
+against the database — plus 96 tests here: 80 in the main API and 16 in the
 speech service, including the contract tests between the two.
+
+**R-07 failed from 1 November 2026 until 8 November, with no code changed.**
+The engine took Luxon's answer for a repeated hour, and Luxon's answer depends
+on the date the code runs — see the last convention at the end of this file.
+In the product it meant an alarm in the repeated hour would go off twice, once
+in each pass. No stored data was affected: occurrences are computed, never
+stored. Not yet entered in the defect register, which lives in the framework
+repository.
 
 **It is two services now, not one.** Generated speech runs as its own service
 under `src/speech`; see "The speech service" below. Everything else is still a
@@ -290,3 +298,13 @@ both halves apply.
 and a wrong password answer identically. Client-side validation here checks
 emptiness only — anything about whether credentials are *correct* stays on the
 server.
+
+**A wall-clock time becomes an instant only through the recurrence engine** —
+`resolverFor` in `src/api/src/recurrence/engine.ts`, which applies R-06 and
+R-07 itself. Luxon's own conversions (`DateTime.fromObject`, or `fromISO` with
+a time and a zone) settle a repeated hour by the zone's offset *at the moment
+the code runs*, read from `Date.now()` — so neither R-07 nor the test clock
+(T-02) governs them. That is how R-07's tests passed when written in October
+and failed from 1 November 2026. A test that touches DST pins "now" with
+`vi.setSystemTime`; the engine's suite pins a winter instant on purpose,
+because that is when the old behaviour was wrong for Toronto.
