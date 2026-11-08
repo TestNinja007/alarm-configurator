@@ -1,12 +1,13 @@
 import { DateTime } from 'luxon';
 import { type FieldError, validationError } from '../errors.js';
 import { MAX_PER_DAY, stepSeconds } from '../recurrence/engine.js';
+import { isIanaTimeZone } from '../recurrence/timezone.js';
 
 export const DEFAULT_TIMEZONE = 'America/Toronto';
 
-/** R-12: the timezone must be a real IANA name. */
+/** R-12: the timezone must be a real IANA name. isIanaTimeZone says what that admits. */
 export function isValidTimezone(timezone: string): boolean {
-  return DateTime.local().setZone(timezone).isValid;
+  return isIanaTimeZone(timezone);
 }
 
 /** Seconds since midnight, from an HH:mm string. */

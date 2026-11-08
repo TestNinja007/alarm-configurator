@@ -49,7 +49,7 @@ the framework's and reporting it clean left this repository's CI red for four
 commits.
 
 ```bash
-npm run lint        # both workspaces: @alarm/api and @alarm/web
+npm run lint        # all three workspaces: @alarm/api, @alarm/web, @alarm/speech
 npm run typecheck
 npm test            # vitest
 npm run build
@@ -57,6 +57,12 @@ npm run build
 
 A change to `src/web/` needs a rebuild and a restart before the test framework
 will see it — the API serves the built assets.
+
+**In a git worktree, run `npm ci` first.** Without it Node falls back to the
+main checkout's root `node_modules` but not to the nested `src/*/node_modules`
+the lockfile installs, so every workspace lints with the root's ESLint 10
+instead of its locked 9, and the web lint cannot load its plugins at all.
+`npm ci` installs exactly what the lockfile says and never rewrites it.
 
 ## Test support
 
@@ -72,12 +78,12 @@ TEST_SUPPORT=1 REGISTRATION_OPEN=1 npm start --workspace @alarm/api
 
 ## Where things stand
 
-*Last updated 20 October 2026. Update this when it stops being true.*
+*Last updated 8 November 2026. Update this when it stops being true.*
 
 The application is covered by two test stacks in the
 [alarm-test-framework](https://github.com/TestNinja007/alarm-test-framework)
 repository — 78 Playwright specs across three engines and 68 pytest tests
-against the database — plus 91 tests here: 75 in the main API and 16 in the
+against the database — plus 213 tests here: 197 in the main API and 16 in the
 speech service, including the contract tests between the two.
 
 **It is two services now, not one.** Generated speech runs as its own service
@@ -117,6 +123,11 @@ Deactivate should offer beyond stopping immediately.
 (`src/api/src/auth/verification.ts`, `passwordReset.ts`). No documented rule
 says otherwise, so it is not a defect; it should be a decision. The reasoning
 both ways is in the test that pins the current behaviour.
+
+**Production has not been checked for stored time zones R-12 now refuses.**
+Each such row would make its owner's notification poll answer 500. The query,
+and what to do with what it finds, are under "Time zones: what R-12 admits";
+run it before that change is deployed.
 
 ### Running it locally
 
@@ -270,6 +281,85 @@ between the two are fully testable, which is what this extraction is for.
   isolation a permission rather than a convention. Needs a superuser.
 - **Test cases for it.** Like sequences, the speech service has no requirements
   and no designed cases - only the engineering tests written alongside it.
+
+## Time zones: what R-12 admits
+
+*Decided in conversation 8 November 2026.*
+
+R-12 says a timezone must be a valid IANA name. The check behind it was
+Luxon's `setZone(...).isValid`, which also passes Luxon's own words: `system`,
+`local` and `default` — the zone of whatever machine runs the server, so UTC on
+Render and the developer's own zone locally — and fixed offsets like `UTC+3`.
+The API stored and computed every one of them, on create and on update.
+
+**An IANA name is now one the runtime knows *and* shaped like an IANA name**,
+checked in `src/api/src/recurrence/timezone.ts`, which the validation and the
+engine share:
+
+- *The runtime knows it*: Luxon's `Info.isValidIANAZone`, which asks Intl. The
+  zones stay the runtime's, so a new tz release needs no change here.
+- *Shaped like one*: under one of IANA's areas (`America/…`, `Etc/…`), or one
+  of its single-word names (`UTC`, `EST5EDT`). IANA stopped adding either long
+  ago, and both lists were checked against PostgreSQL's copy of the tz
+  database.
+
+`Info.isValidIANAZone` on its own was the obvious fix and **is not enough**:
+Intl also accepts offsets (`+03:00`), ICU's legacy abbreviations and
+`SystemV/…`, and some of those mislead badly — `BST` is Bangladesh, not British
+Summer Time. The shape is what refuses them.
+
+Decided with it:
+
+- **`UTC` and `Etc/UTC` stay accepted.** Both are IANA names, which is all R-12
+  asks, and the suite uses `UTC` throughout.
+- **Case is ignored, and the name is stored as written**: `america/toronto`,
+  `utc`. ECMA-402 and PostgreSQL both match IANA names that way. Exact spelling
+  would need a copy of every link name, which the runtime does not expose — a
+  second copy of the tz database, to drift.
+- **`Factory` is refused**, though IANA has it: it stands for "zone not set",
+  not for a place.
+- **A known gap, pinned by a test:** `US/Pacific-New` and
+  `Canada/East-Saskatchewan`, which IANA withdrew, still pass because ICU still
+  knows them. Each computes as the zone it always named.
+
+### Rows stored before the change
+
+The engine refuses a non-IANA zone too, rather than quietly reading `system` as
+the server's zone. So one such row turns its owner's `/me/upcoming` (the
+notification poll), `GET /alarms?sort=next`, and any enabled create or update
+in its group into 500s — verified with a simulated row; the log says
+`Invalid time zone: …`. Editing the alarm to a real zone repairs all of it.
+
+**There are none locally** (8 November: `UTC`, `America/Toronto`,
+`Europe/Lisbon`, `Europe/London`). **Production has not been checked**, and it
+could hold some: registration is open there, and `SEED_ON_START=if-empty` keeps
+whatever visitors stored across a deploy. **Before deploying this change, run:**
+
+```sql
+SELECT timezone, count(*) AS alarms, count(DISTINCT user_id) AS users
+  FROM alarms
+ WHERE lower(timezone) NOT IN
+       (SELECT lower(name) FROM pg_timezone_names WHERE name <> 'Factory')
+ GROUP BY timezone;
+```
+
+Any row it finds is decided one at a time; there is deliberately no migration.
+The name that keeps an alarm firing when it does now is knowable — `system`,
+`local` and `default` have been UTC on Render, and `UTC+3` or `+03:00` is
+`Etc/GMT-3`, sign inverted — but it is often not what the person meant: `BST`
+has been firing on Dhaka time, and `UTC+05:30` has no `Etc` name at all.
+Choosing between behaviour and intent is a decision about someone else's data,
+not a cleanup.
+
+### Not yet a test case
+
+TC21 covers one unknown name; the engineering tests are `validation.test.ts`
+and `timezone.test.ts`. A designed case would need Luxon's server-zone words,
+an offset in each notation and an ICU abbreviation, each refused on create,
+update and preview with the field error on `timezone`; `UTC`, `Etc/UTC` and a
+link name such as `Asia/Calcutta` accepted; and a mis-cased name accepted and
+stored as written. The database layer could assert that no stored zone falls
+outside PostgreSQL's list, with the query above.
 
 ## Conventions that are easy to get wrong
 
