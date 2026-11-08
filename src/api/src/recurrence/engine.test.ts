@@ -1,11 +1,33 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { collidingInstants, occurrencesFor, MAX_PER_DAY, type ScheduleSpec } from './engine.js';
 
 /**
- * Unit tests for the recurrence engine, focused on R-04 through R-07. These are
- * the only tests in this repository; end-to-end, API and UI coverage belongs to
- * the separate test framework.
+ * Unit tests for the recurrence engine, focused on R-04 through R-08.
+ * End-to-end, API and UI coverage belongs to the separate test framework.
  */
+
+/**
+ * Every test here runs with "now" pinned.
+ *
+ * The engine should not care what day it is, but Luxon reads the real clock on
+ * its behalf - which is how R-07's tests passed when they were written in
+ * October and failed from 1 November with no code changed. A suite that lets
+ * the real date in can pass or fail by season.
+ *
+ * The pin is a winter instant on purpose. That is when the old engine got
+ * Toronto's repeated hour wrong, so pinned here the suite would have failed on
+ * the day the bug was written rather than five weeks later. The R-07 block
+ * below moves "now" around deliberately.
+ */
+const PINNED_NOW = new Date('2026-11-15T12:00:00Z');
+
+beforeEach(() => {
+  vi.setSystemTime(PINNED_NOW);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 const TORONTO = 'America/Toronto';
 
@@ -231,6 +253,58 @@ describe('R-07 fall back', () => {
       '2026-11-02T12:00:00Z',
       '2026-11-09T12:00:00Z',
     ]);
+  });
+});
+
+describe('R-07 does not depend on when it runs', () => {
+  /*
+   * The old engine took Luxon's guess, which is the zone's offset at the moment
+   * the code runs. These are the moments around Toronto's fall-back that tell
+   * the two answers apart: it was right at the first two and wrong at the last
+   * two. The answer flipped at the transition itself, 06:00Z on 1 November, and
+   * would have flipped back when the clocks went forward in March.
+   */
+  const moments = [
+    ['weeks before the transition', '2026-10-15T12:00:00Z'],
+    ['during the first 01:00-02:00, still on EDT', '2026-11-01T05:45:00Z'],
+    ['during the repeated 01:00-02:00, now on EST', '2026-11-01T06:15:00Z'],
+    ['weeks after the transition', '2026-11-15T12:00:00Z'],
+  ] as const;
+
+  it.each(moments)('resolves the repeated 01:30 to the first instant when now is %s', (_, now) => {
+    vi.setSystemTime(new Date(now));
+
+    const result = occurrencesFor(
+      spec({ timeOfDay: '01:30', startDate: '2026-10-31', rule: { type: 'daily' } }),
+      { limit: 3 },
+    );
+
+    expect(utc(result)).toEqual([
+      '2026-10-31T05:30:00Z',
+      '2026-11-01T05:30:00Z',
+      '2026-11-02T06:30:00Z',
+    ]);
+    expect(local(result)).toEqual([
+      '2026-10-31T01:30:00-04:00',
+      '2026-11-01T01:30:00-04:00',
+      '2026-11-02T01:30:00-05:00',
+    ]);
+  });
+
+  it('does not offer the 01:30 again to a poll made during the repeated hour', () => {
+    // The same fault, as the product saw it. The browser asks what is due in
+    // the next hour and keys each notification by its instant. At 01:15 EST
+    // the day's 01:30 had already happened, at 05:30Z, so nothing is due. The
+    // old engine answered 06:30Z, a new key, and the alarm went off again.
+    const now = new Date('2026-11-01T06:15:00Z');
+    vi.setSystemTime(now);
+
+    const due = occurrencesFor(
+      spec({ timeOfDay: '01:30', startDate: '2026-10-31', rule: { type: 'daily' } }),
+      { from: now, to: new Date(now.getTime() + 60 * 60 * 1000), limit: 50 },
+    );
+
+    expect(utc(due)).toEqual([]);
   });
 });
 

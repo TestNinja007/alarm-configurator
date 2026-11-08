@@ -1,4 +1,4 @@
-import { DateTime } from 'luxon';
+import { DateTime, Info } from 'luxon';
 import type { Rule, Weekday } from '../schemas/rule.js';
 
 /**
@@ -7,14 +7,19 @@ import type { Rule, Weekday } from '../schemas/rule.js';
  * Every calculation happens in the alarm's own zone and is only then converted
  * to a UTC instant. The container's local time is never consulted.
  *
- * Two behaviours are load-bearing and come from Luxon's defaults, verified
- * rather than assumed:
+ * Two behaviours are load-bearing. Both are applied in `resolverFor`, and
+ * deliberately not inherited from Luxon:
  *
  *   R-06  A local time inside a spring-forward gap moves forward by the length
  *         of the gap. In Toronto 02:30 becomes 03:30; in Lord Howe, whose gap
  *         is thirty minutes, 02:15 becomes 02:45.
- *   R-07  A local time that happens twice resolves to the first of the two,
- *         the one with the earlier UTC offset.
+ *   R-07  A local time that happens twice resolves to the first of the two:
+ *         the earlier instant, under the offset in force before the clocks
+ *         went back.
+ *
+ * Both were once described here as Luxon's defaults, "verified rather than
+ * assumed". R-07 was verified in October, and Luxon's answer for a repeated
+ * time depends on the date the code runs - see `resolverFor`.
  */
 
 export interface Occurrence {
@@ -107,22 +112,62 @@ export function stepSeconds(every: number, unit: 'seconds' | 'minutes' | 'hours'
   return every;
 }
 
+const MINUTE_MS = 60_000;
+const DAY_MS = 86_400_000;
+
 /**
- * Turns a local calendar date plus a wall-clock second-of-day into an instant.
- * This is the single place where R-06 and R-07 take effect.
+ * Turns wall-clock times on one local date into instants: give it the date,
+ * then call the result with a second-of-day. This is the single place where
+ * R-06 and R-07 take effect.
+ *
+ * Neither is left to Luxon. Given a wall-clock time, Luxon starts from a guess
+ * at the offset and keeps the first instant that agrees with it. Its guess is
+ * the zone's offset at the moment the code runs, read from Date.now() - so the
+ * test clock in clock.ts does not reach it either. A repeated time agrees with
+ * both offsets, so the guess decided it: the first instant while the zone was
+ * on summer time, the second all winter. R-07's tests passed when they were
+ * written in October and failed from 1 November.
+ *
+ * Here nothing depends on when the code runs. Every instant that shows a time
+ * on this date falls between a day before the date and a day after it, so the
+ * offsets the zone uses at those two points are the only candidates: one on
+ * most dates, two when the clocks change nearby. (That assumes no zone changes
+ * offset twice within three days.) For each time, a candidate is kept only if
+ * the zone really is on that offset at the instant it gives:
+ *
+ *   two kept   the time happens twice   R-07: the earlier
+ *   one kept   an ordinary time         that one
+ *   none kept  the time is skipped      R-06: forward by the length of the
+ *                                       gap, which is reading the time with
+ *                                       the offset from before it
+ *
+ * The offsets are looked up once per date rather than once per time, because
+ * a dense schedule resolves thousands of times a day and each lookup is the
+ * expensive part.
  */
-function resolveInstant(date: DateTime, secondOfDay: number, zone: string): DateTime {
-  return DateTime.fromObject(
-    {
-      year: date.year,
-      month: date.month,
-      day: date.day,
-      hour: Math.floor(secondOfDay / 3600),
-      minute: Math.floor((secondOfDay % 3600) / 60),
-      second: secondOfDay % 60,
-    },
-    { zone },
-  );
+function resolverFor(date: DateTime, zone: string): (secondOfDay: number) => DateTime {
+  const tz = Info.normalizeZone(zone);
+
+  // The date's midnight as a number, as though it were UTC. A wall-clock
+  // reading is that plus the second-of-day, and subtracting an offset turns
+  // the reading into an instant.
+  const midnight = Date.UTC(date.year, date.month - 1, date.day);
+  const before = tz.offset(midnight - DAY_MS);
+  const after = tz.offset(midnight + 2 * DAY_MS);
+  const offsets = before === after ? [before] : [before, after];
+
+  return (secondOfDay) => {
+    const wall = midnight + secondOfDay * 1000;
+
+    let earliest: DateTime | undefined;
+    for (const offset of offsets) {
+      const candidate = DateTime.fromMillis(wall - offset * MINUTE_MS, { zone: tz });
+      if (candidate.offset !== offset) continue;
+      if (!earliest || candidate < earliest) earliest = candidate;
+    }
+
+    return earliest ?? DateTime.fromMillis(wall - before * MINUTE_MS, { zone: tz });
+  };
 }
 
 /**
@@ -295,7 +340,7 @@ export function placedOccurrencesFor(
   // runs to the end of the day, which is what endOf('day') already gives.
   const endInstantMillis = spec.endDate
     ? (spec.endTime
-        ? resolveInstant(parseLocalDate(spec.endDate, zone), secondsOfDay(spec.endTime), zone)
+        ? resolverFor(parseLocalDate(spec.endDate, zone), zone)(secondsOfDay(spec.endTime))
         : parseLocalDate(spec.endDate, zone).endOf('day')
       ).toMillis()
     : Number.POSITIVE_INFINITY;
@@ -327,9 +372,10 @@ export function placedOccurrencesFor(
      */
     const seen = new Set<number>();
     const dayInstants: DateTime[] = [];
+    const resolve = resolverFor(date, zone);
 
     for (const secondOfDay of secondsOfDayList) {
-      const instant = resolveInstant(date, secondOfDay, zone);
+      const instant = resolve(secondOfDay);
       if (!instant.isValid) continue;
 
       const millis = instant.toMillis();
