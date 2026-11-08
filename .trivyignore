@@ -1,0 +1,3 @@
+# minimatch DoS via crafted glob. Dev-only (typescript-eslint/ESLint linting); patterns come from our own config.
+   # Fix needs minimatch 11; a scoped npm override didn't apply. Revisit when typescript-eslint upgrades.
+   CVE-2026-118764 exp:2027-02-01
