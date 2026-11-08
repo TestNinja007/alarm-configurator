@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon';
 import type { Rule, Weekday } from '../schemas/rule.js';
+import { isIanaTimeZone } from './timezone.js';
 
 /**
  * The recurrence engine.
@@ -285,7 +286,10 @@ export function placedOccurrencesFor(
   window: OccurrenceWindow,
 ): PlacedOccurrence[] {
   const zone = spec.timezone;
-  if (!DateTime.local().setZone(zone).isValid) {
+  // R-12 again, for zones already stored. Luxon reads "system" or "local" as
+  // the server's own zone, which is the container's local time this engine
+  // promises never to consult.
+  if (!isIanaTimeZone(zone)) {
     throw new RecurrenceError(`Invalid time zone: ${zone}`);
   }
 
