@@ -6,3 +6,4 @@ dist/
 
 # The editor/agent launch config is local tooling, not part of the app.
 .claude/
+sbom.cdx.json
