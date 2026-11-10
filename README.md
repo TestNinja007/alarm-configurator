@@ -18,13 +18,23 @@ a separate repository.
 docker compose up --build
 ```
 
-> The compose stack is written but has not been run: it was developed against a
-> local PostgreSQL instance. Everything below the Docker line has been verified;
-> the container build has not.
+That starts the whole application in containers: PostgreSQL, Mailpit, the main
+API and the speech service, wired together. CI builds and starts this same
+stack on every push, although production does not use it (see
+[Deploying](#deploying)).
 
 The app is at <http://localhost:8080> and the API at
-<http://localhost:8080/api/v1>. Migrations and the seed run automatically before
-the server starts.
+<http://localhost:8080/api/v1>. Migrations run on every start. The demo seed
+loads on the first, while the database is empty, and the data then survives
+restarts; `docker compose down --volumes` starts over. Every port is published
+on 127.0.0.1 only:
+
+| Port | What |
+| --- | --- |
+| 8080 | The app and its API |
+| 8090 | The speech service, for tests that call it directly |
+| 8025 | Mailpit: the inbox, its UI and its API |
+| 5433 | PostgreSQL, for tests that query it directly |
 
 To run it against a local PostgreSQL instead:
 
@@ -39,7 +49,8 @@ npm start
 
 **Generated speech is a separate service** — see [Generated audio](#generated-audio).
 It is optional: without it the application runs normally and the browser speaks
-in its own voice. To run it alongside, in a second terminal:
+in its own voice. `docker compose up` already runs it. Without Docker, run it
+alongside in a second terminal:
 
 ```
 npm run start:speech     # migrates its own schema, then listens on 8090
@@ -52,7 +63,8 @@ pointing the main API at it.
 
 [`render.yaml`](render.yaml) is a Render blueprint: a free Postgres plus a Node
 web service that builds with `npm ci && npm run build` and starts with
-`npm start`, which migrates, seeds if the database is empty, then serves.
+`npm start`, which migrates, seeds if the database is empty, then serves. It
+does not use the Docker image.
 
 The deployed configuration differs from local in three ways, all deliberate:
 
@@ -66,7 +78,8 @@ The deployed configuration differs from local in three ways, all deliberate:
 
 Session cookies are marked `Secure` whenever `NODE_ENV=production`, and the
 server trusts `X-Forwarded-*` so it sees the real protocol behind the platform's
-proxy.
+proxy. `COOKIE_SECURE=0` turns the first off; the compose stack sets it, since
+it serves plain HTTP.
 
 ## Seeded users
 
@@ -148,6 +161,7 @@ The speech service reads its own settings, separately:
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `SPEECH_PORT` | `8090` | Where it listens. |
+| `SPEECH_HOST` | `127.0.0.1` | The address it listens on. Its container image sets `0.0.0.0`, so the API's container can reach it. |
 | `SPEECH_SERVICE_TOKEN` | — | What callers must present. **Required** — it will not start without one, rather than run as an open, metered endpoint. |
 | `SPEECH_DATABASE_URL` | `DATABASE_URL` | Its database. Its tables live in their own schema, so this may be the same server and database. |
 | `SPEECH_SCHEMA` | `speech` | The schema it owns. |

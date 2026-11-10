@@ -32,15 +32,26 @@ erroring, check the database's status in the Render dashboard first. Recovery
 is: new free database (same region; Render will not reuse an expired database's name, so the name changes and `render.yaml` must change with it — currently `alarm1-configurator-db`), point `DATABASE_URL` at it,
 deploy manually; boot recreates the schema and the demo seed.
 
-**Docker is not in the production path.** `render.yaml` sets `runtime: node`
-and says why in a comment: the Dockerfile has never been exercised, so the
-blueprint deliberately avoids it. CI builds and starts the app the same way
-Render does.
-
-`docker compose up --build` is still the first command the README offers for
-running locally, and it has never been run. That is a newcomer's-first-command
-problem, not a shipping one. Do not describe the container as the environment
+**Docker is not in the production path.** `render.yaml` sets `runtime: node`:
+Render installs and builds with npm, the way CI's `build` job does, and starts
+the app with `npm start`. Do not describe the container as the environment
 production runs.
+
+*Decided 10 November 2026:* the whole application runs in containers locally
+and in CI. `docker compose up --build` starts PostgreSQL, Mailpit, the API and
+the speech service, built from one Dockerfile with a target per service (`api`
+and `speech`). CI's `container` job builds that stack on every push and pull
+request, starts it, and checks it from outside.
+
+That job exists because the Dockerfile went six weeks without being run and
+fell behind the code unnoticed. Read again before its first run, it predated
+the speech service, copied root `tsconfig*.json` files that do not exist, used
+an entrypoint script that had CRLF line endings in the Windows checkout, and
+mounted the database volume where PostgreSQL 18's image refuses one.
+
+Production stays on Render's Node runtime. The reason for keeping Docker out of
+it, an image nobody had run, no longer holds, so moving Render onto the `api`
+image is now possible. That is a separate decision, and it has not been made.
 
 ## Verifying a change
 
@@ -49,11 +60,14 @@ the framework's and reporting it clean left this repository's CI red for four
 commits.
 
 ```bash
-npm run lint        # both workspaces: @alarm/api and @alarm/web
+npm run lint        # all three workspaces: @alarm/api, @alarm/web, @alarm/speech
 npm run typecheck
 npm test            # vitest
 npm run build
 ```
+
+None of these touch the Dockerfile or `docker-compose.yml`. CI's `container`
+job is what checks those.
 
 A change to `src/web/` needs a rebuild and a restart before the test framework
 will see it — the API serves the built assets.
