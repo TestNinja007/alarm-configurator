@@ -14,6 +14,25 @@ would drift, which is DEF-15 one layer up.
 
 ---
 
+## The name
+
+*Decided 11 November 2026:* the product is called **Nudgely**. It was Nudge.
+
+The rule the README already stated still holds: only what a person sees
+carries the name. That covers the interface, the emails, the API
+documentation's title and the README. Repository, package and database names
+keep the old one, and so do the test framework's dashboard and job
+identifiers. The common noun stays a common noun: "a nudge, not a siren" is
+the product's voice, not its name.
+
+The deployed site's sender name comes from `MAIL_FROM`, which is set in the
+Render dashboard rather than in `render.yaml`. If it names Nudge, it changes
+there, by hand.
+
+Nudgely is already the name of a Shopify pop-up app and of a goal-support app.
+Apple's App Store requires a unique app name, so check that it is free there
+before the mobile app is published under it.
+
 ## Deployment
 
 **Render deploys do not happen on push.** Pushing to `main` does not make it

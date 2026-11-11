@@ -38,7 +38,7 @@ export function ForgotPasswordPage() {
         {/* The only way back out of a form you decided not to fill in. */}
         <Link className="auth-lockup auth-lockup-link" to="/" data-testid="auth-home-link">
           <Logo size={44} />
-          <h1 className="auth-wordmark">Nudge</h1>
+          <h1 className="auth-wordmark">Nudgely</h1>
         </Link>
         <p className="auth-tagline">Alarms that actually work with you.</p>
       </header>
