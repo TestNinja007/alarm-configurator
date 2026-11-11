@@ -29,3 +29,48 @@ jobs:
 
       - name: Unit tests (recurrence engine)
         run: npm test
+
+  # The whole stack in containers, built and started exactly as
+  # `docker compose up --build` does on a developer's machine, then checked
+  # from outside. The Dockerfile went six weeks without being run and fell
+  # behind the code; this job is what stops that happening again. Production
+  # does not run these images: render.yaml uses Render's Node runtime.
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      # --wait returns once every service reports healthy, and fails if any of
+      # them exits or never gets there.
+      - name: Build the images and start the stack
+        run: docker compose up --build --detach --wait --wait-timeout 240
+
+      - name: The API answers on its published port, with its database up
+        run: curl -fsS http://127.0.0.1:8080/api/v1/health | jq -e '.status == "ok"'
+
+      - name: The API image serves the web app
+        run: |
+          curl -fsS -o index.html http://127.0.0.1:8080/
+          grep -F 'id="root"' index.html
+
+      # From inside the API's container, with the API's own URL and token: the
+      # service name resolves, the port is reachable from another container
+      # and the token is accepted. That wiring is what the compose file is for.
+      - name: The API reaches the speech service with its own settings
+        run: |
+          docker compose exec -T app node --input-type=module - <<'EOF'
+          const response = await fetch(`${process.env.SPEECH_SERVICE_URL}/v1/settings`, {
+            headers: { authorization: `Bearer ${process.env.SPEECH_SERVICE_TOKEN}` },
+          });
+          console.log(response.status, await response.text());
+          process.exit(response.ok ? 0 : 1);
+          EOF
+
+      - name: Logs
+        if: always()
+        run: docker compose logs --no-color
+
+      - name: Stop the stack
+        if: always()
+        run: docker compose down --volumes

@@ -1,3 +1,18 @@
+# The whole application on one machine: PostgreSQL, a mail catcher, the main
+# API (which also serves the web app) and the speech service.
+#
+#   docker compose up --build
+#
+# CI builds and starts this same stack on every push - the `container` job in
+# .github/workflows/ci.yml. Production does not run it: render.yaml deploys to
+# Render's Node runtime.
+#
+# Every credential here is a fixed development value, so each published port
+# is bound to 127.0.0.1 and reachable from this machine only.
+
+# One token for both ends, so the API and the speech service cannot drift apart.
+x-speech-token: &speech-token docker-compose-development-speech-token
+
 services:
   db:
     image: postgres:18-alpine
@@ -7,11 +22,18 @@ services:
       POSTGRES_DB: alarm_configurator
     ports:
       # Exposed so a test framework on the host can query the database directly.
-      - "5433:5432"
+      # 5433, so it does not collide with a PostgreSQL installed on the host.
+      - "127.0.0.1:5433:5432"
     volumes:
-      - db-data:/var/lib/postgresql/data
+      # The parent, not .../data: from 18 the image keeps its data in a
+      # version-named directory beneath /var/lib/postgresql, and exits at
+      # startup if a volume is mounted at the old path.
+      - db-data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U alarm_app -d alarm_configurator"]
+      # Over TCP on purpose. While it initialises a new database the image runs
+      # a temporary server on the Unix socket only; a socket check would pass
+      # then, and let the API connect to a server that is about to restart.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U alarm_app -d alarm_configurator"]
       interval: 3s
       timeout: 3s
       retries: 20
@@ -23,7 +45,7 @@ services:
   mail:
     image: axllent/mailpit:latest
     ports:
-      - "8025:8025"
+      - "127.0.0.1:8025:8025"
     environment:
       MP_SMTP_AUTH_ACCEPT_ANY: "1"
       MP_SMTP_AUTH_ALLOW_INSECURE: "1"
@@ -34,7 +56,9 @@ services:
       retries: 20
 
   app:
-    build: .
+    build:
+      context: .
+      target: api
     depends_on:
       db:
         condition: service_healthy
@@ -49,14 +73,40 @@ services:
       LIST_DELAY_MS: "600"
       SESSION_SECRET: docker-compose-development-session-secret
       REGISTRATION_OPEN: "1"
+      # Served over plain HTTP, so the session cookie must not be marked
+      # Secure. The image sets NODE_ENV=production, which would turn it on.
+      COOKIE_SECURE: "0"
       MAIL_TRANSPORT: smtp
       MAIL_HOST: mail
       MAIL_PORT: "1025"
       # Mailpit speaks plain SMTP and is on this machine, so STARTTLS is
       # neither offered nor needed. Never set this against a real provider.
       MAIL_IGNORE_TLS: "1"
+      SPEECH_SERVICE_URL: http://speech:8090
+      SPEECH_SERVICE_TOKEN: *speech-token
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
+
+  # The speech service. The API reaches it by its service name; if it is down,
+  # speech degrades to the browser's own voice rather than failing.
+  speech:
+    build:
+      context: .
+      target: speech
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # The API's server and database, with a schema of its own inside them -
+      # "Data: schema per service" in CLAUDE.md. It migrates that schema itself.
+      DATABASE_URL: postgresql://alarm_app:alarm_app@db:5432/alarm_configurator
+      SPEECH_SERVICE_TOKEN: *speech-token
+      # Real, playable audio with no account, key or quota.
+      TTS_PROVIDER: mock
+    ports:
+      # Only the API needs it. Published so a test framework on the host can
+      # call it directly, as the framework's CI does.
+      - "127.0.0.1:8090:8090"
 
 volumes:
   db-data:
