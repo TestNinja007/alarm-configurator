@@ -86,7 +86,7 @@ TEST_SUPPORT=1 REGISTRATION_OPEN=1 npm start --workspace @alarm/api
 
 ## Where things stand
 
-*Last updated 8 November 2026. Update this when it stops being true.*
+*Last updated 11 November 2026. Update this when it stops being true.*
 
 The application is covered by two test stacks in the
 [alarm-test-framework](https://github.com/TestNinja007/alarm-test-framework)
@@ -99,14 +99,16 @@ The engine took Luxon's answer for a repeated hour, and Luxon's answer depends
 on the date the code runs — see the last convention at the end of this file.
 In the product it meant an alarm in the repeated hour would go off twice, once
 in each pass. No stored data was affected: occurrences are computed, never
-stored. Not yet entered in the defect register, which lives in the framework
-repository.
+stored. Filed as DEF-23 in the framework's defect register. The framework's
+TC39 caught it first: the nightly run failed on it every night from 1 November
+until the fix was merged on 8 November. The fix went live with the deploy of
+11 November 2026.
 
 **It is two services now, not one.** Generated speech runs as its own service
 under `src/speech`; see "The speech service" below. Everything else is still a
 single application, deliberately.
 
-**22 defects found, 20 fixed, 1 open, 1 by design.** The open one is DEF-08:
+**23 defects found, 21 fixed, 1 open, 1 by design.** The open one is DEF-08:
 multi-second maxima on database-backed endpoints under load, cause not
 established. Its symptoms reach this repository as pool acquisition failures,
 which now answer 503 with `Retry-After` rather than an unhandled 500 — correct
