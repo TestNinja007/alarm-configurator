@@ -13,11 +13,11 @@ export async function sendVerificationCode(options: {
 }): Promise<void> {
   await sendMail({
     to: options.to,
-    subject: `Your Nudge code is ${options.code}`,
+    subject: `Your Nujly code is ${options.code}`,
     text: [
       `Hello ${options.name},`,
       '',
-      'Use this code to finish creating your Nudge account:',
+      'Use this code to finish creating your Nujly account:',
       '',
       `    ${options.code}`,
       '',
@@ -27,7 +27,7 @@ export async function sendVerificationCode(options: {
       'If you did not ask for an account, ignore this message: nothing happens',
       'until the code is entered.',
       '',
-      '— Nudge',
+      '— Nujly',
     ].join('\n'),
   });
 }
@@ -39,11 +39,11 @@ export async function sendPasswordResetCode(options: {
 }): Promise<void> {
   await sendMail({
     to: options.to,
-    subject: `Your Nudge password reset code is ${options.code}`,
+    subject: `Your Nujly password reset code is ${options.code}`,
     text: [
       `Hello ${options.name},`,
       '',
-      'Use this code to choose a new Nudge password:',
+      'Use this code to choose a new Nujly password:',
       '',
       `    ${options.code}`,
       '',
@@ -53,7 +53,7 @@ export async function sendPasswordResetCode(options: {
       'If you did not ask to reset your password, ignore this message. Your',
       'password has not changed and nothing happens until the code is used.',
       '',
-      '— Nudge',
+      '— Nujly',
     ].join('\n'),
   });
 }

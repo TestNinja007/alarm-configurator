@@ -52,7 +52,7 @@ export async function buildServer(): Promise<FastifyInstance> {
     openapi: {
       openapi: '3.1.0',
       info: {
-        title: 'Nudge',
+        title: 'Nujly',
         version: config.version,
         description:
           'Configuration of recurring alarms. Every instant is UTC with a Z suffix. ' +

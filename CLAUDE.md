@@ -14,6 +14,68 @@ would drift, which is DEF-15 one layer up.
 
 ---
 
+## The product
+
+### The name
+
+*Decided 11 November 2026:* the product is called **Nujly**, spelled
+n-u-j-l-y. It is an invented spelling of "nudge". It was Nudge.
+
+**Nudgely came first, the same day, and was dropped.** It was taken in the
+same space:
+
+- Google Play has "Nudgely by Amat Solutions", a habit-reminder app.
+- nudgely.co has been a site with a similar theme since 2024.
+
+Real words fared no better. Spur, Waymark, OnCue, Beckon and a dozen more were
+checked, and each had namesakes in or near the space. So an invented spelling
+was chosen, one that could be owned.
+
+**Checked on 11 November 2026, before committing to it:**
+
+- No trademark contains "Nujly", in the US (USPTO), Canada (CIPO) or WIPO's
+  international database.
+- No app on either store, and no website, is called Nujly.
+- **It sounds like Nudgely,** and trademark law judges names by sound as well
+  as spelling. Two live products use Nudgely for what this one does:
+  nudgely.co, an AI habit-accountability service that sends SMS nudges, and
+  "Nudgely by Amat Solutions". Neither has registered the name. The only
+  Nudgely trademark anywhere is "MRS. NUDGELY", a pending US filing for AI
+  chatbot software.
+- Using a name still gives its users some rights, so the risk is low but real,
+  and it grows with the product. Before investing heavily in the brand, have a
+  trademark agent assess it. Filing NUJLY in Canada is the way to hold the
+  name.
+
+**nujly.com is registered** at Cloudflare, since 11 November 2026, with the
+transfer lock on. It renews every November, so auto-renew must stay on. The
+site is not served on it yet. Nothing in the application hard-codes its own
+address, because one origin serves both the API and the web app, so pointing
+the domain at Render needs no code change.
+
+The rule the README already stated still holds: only what a person sees
+carries the name. That covers the interface, the emails, the API
+documentation's title and the README. Repository, package and database names
+keep the old one, and so do the test framework's dashboard and job
+identifiers. The common noun stays a common noun: "a nudge, not a siren" is
+the product's voice, not its name.
+
+The deployed site's sender name comes from `MAIL_FROM`, which is set in the
+Render dashboard rather than in `render.yaml`. If it names Nudge, it changes
+there, by hand.
+
+### App first
+
+*Decided 11 November 2026:* the mobile app is the main product. It lives in
+`alarm-mobile`, which is checked out beside this repository and is local-only
+for now. The browser app in this repository is secondary, because people
+rarely go to a website.
+
+The app stores are for marketing, not revenue. Any money goes through a
+third-party payment provider, not store billing. So the stores' rules on what
+an app may say or link to about outside purchases apply to the mobile app, and
+they vary by country.
+
 ## Deployment
 
 **Render deploys do not happen on push.** Pushing to `main` does not make it

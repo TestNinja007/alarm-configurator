@@ -54,7 +54,7 @@ async function main(): Promise<void> {
       listDelayMs: config.listDelayMs,
       cookieSecure: config.cookieSecure,
     },
-    'Nudge ready',
+    'Nujly ready',
   );
 }
 
