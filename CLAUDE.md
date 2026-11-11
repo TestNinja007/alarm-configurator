@@ -29,9 +29,21 @@ The deployed site's sender name comes from `MAIL_FROM`, which is set in the
 Render dashboard rather than in `render.yaml`. If it names Nudge, it changes
 there, by hand.
 
-Nudgely is already the name of a Shopify pop-up app and of a goal-support app.
-Apple's App Store requires a unique app name, so check that it is free there
-before the mobile app is published under it.
+**Kept knowing it is not unique.** Before the decision was final, the stores
+were checked:
+
+- Google Play already has "Nudgely by Amat Solutions", a habit-reminder app in
+  the same space.
+- The App Store has "Nudgly", an AI planner built on reminders.
+- A Shopify app is also called Nudgely.
+
+The name was kept anyway, because nudge-named apps are everywhere, and the
+stores are for marketing, not revenue. A search for the name finds the other
+app first, so a store listing needs more than the bare name to be told apart.
+
+*Decided the same day:* any money goes through a third-party payment provider,
+not store billing. The stores' rules on what an app may say or link to about
+outside purchases therefore apply to the mobile app, and vary by country.
 
 ## Deployment
 
