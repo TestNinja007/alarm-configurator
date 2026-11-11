@@ -29,8 +29,29 @@ same space:
 
 Real words fared no better. Spur, Waymark, OnCue, Beckon and a dozen more were
 checked, and each had namesakes in or near the space. So an invented spelling
-was chosen, one that could be owned. When checked on 11 November 2026, no app
-or site was called Nujly, and nujly.com, nujly.co and nujly.app had no DNS.
+was chosen, one that could be owned.
+
+**Checked on 11 November 2026, before committing to it:**
+
+- No trademark contains "Nujly", in the US (USPTO), Canada (CIPO) or WIPO's
+  international database.
+- No app on either store, and no website, is called Nujly.
+- **It sounds like Nudgely,** and trademark law judges names by sound as well
+  as spelling. Two live products use Nudgely for what this one does:
+  nudgely.co, an AI habit-accountability service that sends SMS nudges, and
+  "Nudgely by Amat Solutions". Neither has registered the name. The only
+  Nudgely trademark anywhere is "MRS. NUDGELY", a pending US filing for AI
+  chatbot software.
+- Using a name still gives its users some rights, so the risk is low but real,
+  and it grows with the product. Before investing heavily in the brand, have a
+  trademark agent assess it. Filing NUJLY in Canada is the way to hold the
+  name.
+
+**nujly.com is registered** at Cloudflare, since 11 November 2026, with the
+transfer lock on. It renews every November, so auto-renew must stay on. The
+site is not served on it yet. Nothing in the application hard-codes its own
+address, because one origin serves both the API and the web app, so pointing
+the domain at Render needs no code change.
 
 The rule the README already stated still holds: only what a person sees
 carries the name. That covers the interface, the emails, the API
