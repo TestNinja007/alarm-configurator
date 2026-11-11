@@ -94,10 +94,9 @@ erroring, check the database's status in the Render dashboard first. Recovery
 is: new free database (same region; Render will not reuse an expired database's name, so the name changes and `render.yaml` must change with it — currently `alarm1-configurator-db`), point `DATABASE_URL` at it,
 deploy manually; boot recreates the schema and the demo seed.
 
-**Docker is not in the production path.** `render.yaml` sets `runtime: node`:
-Render installs and builds with npm, the way CI's `build` job does, and starts
-the app with `npm start`. Do not describe the container as the environment
-production runs.
+**Production runs in the container.** The Render service builds the
+Dockerfile's `api` image, which is the image CI's `container` job builds and
+starts on every push. `render.yaml` says `runtime: docker`.
 
 *Decided 10 November 2026:* the whole application runs in containers locally
 and in CI. `docker compose up --build` starts PostgreSQL, Mailpit, the API and
@@ -111,9 +110,23 @@ the speech service, copied root `tsconfig*.json` files that do not exist, used
 an entrypoint script that had CRLF line endings in the Windows checkout, and
 mounted the database volume where PostgreSQL 18's image refuses one.
 
-Production stays on Render's Node runtime. The reason for keeping Docker out of
-it, an image nobody had run, no longer holds, so moving Render onto the `api`
-image is now possible. That is a separate decision, and it has not been made.
+*Decided 11 November 2026:* production moved onto the `api` image. Until then
+Render ran its native Node runtime, because the image had never been run. CI
+now proves the image on every push, so that reason no longer held.
+
+The switch was made in place: **Settings → Build → Source → Edit**, with the
+runtime set to Docker. So the service, its environment variables, its database
+and its domains (`nujly.com`, `www.nujly.com`) are all unchanged. To roll back,
+use the same dialog with runtime **Node**, build command
+`npm ci --include=dev && npm run build` and start command
+`npm start --workspace @alarm/api`.
+
+Some things the container does not change:
+
+- Deploys are still manual.
+- Render sets `PORT`, and the API reads it.
+- Render ignores the image's `HEALTHCHECK` and uses `/api/v1/health`.
+- The speech service is still not deployed.
 
 ## Verifying a change
 
@@ -129,7 +142,8 @@ npm run build
 ```
 
 None of these touch the Dockerfile or `docker-compose.yml`. CI's `container`
-job is what checks those.
+job is what checks those. Production runs the `api` image, so a change to the
+Dockerfile is a change to production.
 
 A change to `src/web/` needs a rebuild and a restart before the test framework
 will see it — the API serves the built assets.

@@ -20,8 +20,8 @@ docker compose up --build
 
 That starts the whole application in containers: PostgreSQL, Mailpit, the main
 API and the speech service, wired together. CI builds and starts this same
-stack on every push, although production does not use it (see
-[Deploying](#deploying)).
+stack on every push. Production runs the same API image, with Render's
+database and real email in place of the stack's (see [Deploying](#deploying)).
 
 The app is at <http://localhost:8080> and the API at
 <http://localhost:8080/api/v1>. Migrations run on every start. The demo seed
@@ -61,10 +61,11 @@ pointing the main API at it.
 
 ## Deploying
 
-[`render.yaml`](render.yaml) is a Render blueprint: a free Postgres plus a Node
-web service that builds with `npm ci && npm run build` and starts with
-`npm start`, which migrates, seeds if the database is empty, then serves. It
-does not use the Docker image.
+[`render.yaml`](render.yaml) is a Render blueprint: a free Postgres, plus a web
+service built from the [`Dockerfile`](Dockerfile)'s `api` image. That is the
+same image CI's `container` job builds and starts on every push. It migrates,
+seeds if the database is empty, then serves. The live site is
+<https://nujly.com>.
 
 The deployed configuration differs from local in three ways, all deliberate:
 
