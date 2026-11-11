@@ -52,7 +52,7 @@ function TopBar({ session }: { session: Session }) {
     <header className="topbar" data-testid="app-topbar" data-armed-alarms={notifications.armed}>
       <span className="topbar-brand">
         <Logo size={22} />
-        Nudgely
+        Nujly
       </span>
       <div className="topbar-user">
         <span data-testid="topbar-user-name">{session.user.name}</span>
@@ -89,7 +89,7 @@ export function App() {
       <div className="page app-splash" aria-busy="true" data-testid="app-loading">
         <div className="auth-lockup">
           <Logo size={44} />
-          <p className="auth-wordmark">Nudgely</p>
+          <p className="auth-wordmark">Nujly</p>
         </div>
         <p className="auth-tagline">Loading…</p>
       </div>

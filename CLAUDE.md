@@ -14,9 +14,23 @@ would drift, which is DEF-15 one layer up.
 
 ---
 
-## The name
+## The product
 
-*Decided 11 November 2026:* the product is called **Nudgely**. It was Nudge.
+### The name
+
+*Decided 11 November 2026:* the product is called **Nujly**, spelled
+n-u-j-l-y. It is an invented spelling of "nudge". It was Nudge.
+
+**Nudgely came first, the same day, and was dropped.** It was taken in the
+same space:
+
+- Google Play has "Nudgely by Amat Solutions", a habit-reminder app.
+- nudgely.co has been a site with a similar theme since 2024.
+
+Real words fared no better. Spur, Waymark, OnCue, Beckon and a dozen more were
+checked, and each had namesakes in or near the space. So an invented spelling
+was chosen, one that could be owned. When checked on 11 November 2026, no app
+or site was called Nujly, and nujly.com, nujly.co and nujly.app had no DNS.
 
 The rule the README already stated still holds: only what a person sees
 carries the name. That covers the interface, the emails, the API
@@ -29,21 +43,17 @@ The deployed site's sender name comes from `MAIL_FROM`, which is set in the
 Render dashboard rather than in `render.yaml`. If it names Nudge, it changes
 there, by hand.
 
-**Kept knowing it is not unique.** Before the decision was final, the stores
-were checked:
+### App first
 
-- Google Play already has "Nudgely by Amat Solutions", a habit-reminder app in
-  the same space.
-- The App Store has "Nudgly", an AI planner built on reminders.
-- A Shopify app is also called Nudgely.
+*Decided 11 November 2026:* the mobile app is the main product. It lives in
+`alarm-mobile`, which is checked out beside this repository and is local-only
+for now. The browser app in this repository is secondary, because people
+rarely go to a website.
 
-The name was kept anyway, because nudge-named apps are everywhere, and the
-stores are for marketing, not revenue. A search for the name finds the other
-app first, so a store listing needs more than the bare name to be told apart.
-
-*Decided the same day:* any money goes through a third-party payment provider,
-not store billing. The stores' rules on what an app may say or link to about
-outside purchases therefore apply to the mobile app, and vary by country.
+The app stores are for marketing, not revenue. Any money goes through a
+third-party payment provider, not store billing. So the stores' rules on what
+an app may say or link to about outside purchases apply to the mobile app, and
+they vary by country.
 
 ## Deployment
 

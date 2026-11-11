@@ -1,4 +1,4 @@
-# What Nudgely is for
+# What Nujly is for
 
 Written down because the product idea is sharper than the landing page
 currently says, and because the distinction below is the thing that makes this
@@ -10,7 +10,7 @@ There are thousands of daily planners. They all serve the same person: someone
 who sits down, lays the day out, and then executes it. That person is well
 served already.
 
-Nudgely is for the other kind. Someone who is impromptu, on the go, and relies on
+Nujly is for the other kind. Someone who is impromptu, on the go, and relies on
 alarms. They hold intentions at the level of **category**, not clock time:
 
 > "Today I want to meditate at some point. And work out, if there is time."
@@ -20,7 +20,7 @@ the moment, when the gap appears. What they need at that moment is not a plan â€
 they already have the plan. They need the structure to run it, immediately,
 without ten minutes of setup.
 
-**Nudgely is not for planning your day. It is for making the most of a plan you
+**Nujly is not for planning your day. It is for making the most of a plan you
 already had in mind.**
 
 ## The two features everything else hangs off
@@ -62,7 +62,7 @@ interviewer:
 - **Reminder and planner apps** do days and weeks well. None of them does
   seconds, because a calendar has no reason to.
 
-Nudgely is the space between: **a reusable library of interval routines, with
+Nujly is the space between: **a reusable library of interval routines, with
 calendar-grade recurrence, and a voice.**
 
 > **Careful with the claim.** "Second-level repetition is not offered anywhere
@@ -136,7 +136,7 @@ These are where the two features multiply rather than add.
 
 4. **Collision warnings matter more here than they look.** If an hourly
    stand-up alarm fires into the middle of a 30-second interval sequence, that
-   is a real conflict, not a theoretical one. Nudgely already detects it.
+   is a real conflict, not a theoretical one. Nujly already detects it.
 
 5. **Folders as shareable routines.** A coach, a physio or a teacher hands you
    a folder. The recipient does no setup at all. This is the strongest

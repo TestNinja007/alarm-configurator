@@ -98,7 +98,7 @@ export function LandingPage() {
     <main className="landing" data-testid="landing-page">
       <p className="landing-beta" data-testid="landing-beta">
         <span className="landing-beta-tag">Beta</span>
-        Nudgely is early and still changing. It is open source — the whole thing is{' '}
+        Nujly is early and still changing. It is open source — the whole thing is{' '}
         <a href={REPO_URL} target="_blank" rel="noreferrer" data-testid="landing-repo-link">
           on GitHub
         </a>
@@ -108,7 +108,7 @@ export function LandingPage() {
       <nav className="landing-nav" data-testid="landing-nav">
         <span className="auth-lockup">
           <Logo size={30} />
-          <span className="landing-wordmark">Nudgely</span>
+          <span className="landing-wordmark">Nujly</span>
         </span>
         <span className="landing-nav-signin">
           <span className="landing-nav-prompt">Already part of the journey?</span>
@@ -127,7 +127,7 @@ export function LandingPage() {
           </p>
 
           <p className="landing-lead" data-testid="landing-lead">
-            Nudgely helps you shape it, and hold on to it. Set the structure in
+            Nujly helps you shape it, and hold on to it. Set the structure in
             seconds — it tells you out loud when to move.
           </p>
 
@@ -222,7 +222,7 @@ export function LandingPage() {
               Meditation at 14:00. Workout at 18:30. The day decided the night
               before, and followed.
             </p>
-            <p className="landing-contrast-verdict">Nudgely is not for you.</p>
+            <p className="landing-contrast-verdict">Nujly is not for you.</p>
           </article>
 
           <article className="panel panel-mint landing-contrast-card">
@@ -237,7 +237,7 @@ export function LandingPage() {
         </div>
 
         <p className="landing-prose landing-prose-close">
-          Nudgely does not help you plan your day. It helps you make the most of
+          Nujly does not help you plan your day. It helps you make the most of
           an idea that pops into your head.
         </p>
       </section>
@@ -306,7 +306,7 @@ export function LandingPage() {
       <footer className="landing-footer">
         <span className="auth-lockup">
           <Logo size={22} />
-          <span className="landing-footer-wordmark">Nudgely</span>
+          <span className="landing-footer-wordmark">Nujly</span>
         </span>
         <p className="landing-footer-note">
           {canRegister ? (

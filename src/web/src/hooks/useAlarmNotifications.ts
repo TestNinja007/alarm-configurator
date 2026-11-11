@@ -331,7 +331,7 @@ export function useAlarmNotifications() {
   const sendTest = useCallback(() => {
     if (currentPermission() !== 'granted') return;
     try {
-      new Notification('Nudgely', {
+      new Notification('Nujly', {
         body: 'Notifications are working. Alarms will appear like this.',
         tag: 'alarm-configurator-test',
       });
