@@ -48,10 +48,17 @@ was chosen, one that could be owned.
   name.
 
 **nujly.com is registered** at Cloudflare, since 11 November 2026, with the
-transfer lock on. It renews every November, so auto-renew must stay on. The
-site is not served on it yet. Nothing in the application hard-codes its own
-address, because one origin serves both the API and the web app, so pointing
-the domain at Render needs no code change.
+transfer lock on. It renews every November, so auto-renew must stay on.
+
+**The site has been served on it since 11 November 2026,** at `nujly.com` and
+`www.nujly.com`. In Cloudflare, both are CNAME records pointing at
+`alarm-configurator.onrender.com`. Both are set to **DNS only**, not proxied:
+Render issues the certificates itself, and it cannot confirm a domain that
+Cloudflare's proxy answers for. `alarm-configurator.onrender.com` keeps working
+behind them.
+
+It needed no code change. Nothing in the application hard-codes its own
+address, because one origin serves both the API and the web app.
 
 The rule the README already stated still holds: only what a person sees
 carries the name. That covers the interface, the emails, the API
